@@ -1,0 +1,447 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────
+// User & Auth
+// ─────────────────────────────────────────
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  name          String
+  passwordHash  String?
+  role          UserRole       @default(MEMBER)
+  accounts      UserAccount[]
+  notifications Notification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+enum UserRole {
+  ADMIN
+  MEMBER
+}
+
+model UserAccount {
+  userId    String
+  accountId String
+  role      AccountRole @default(VIEWER)
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+
+  @@id([userId, accountId])
+}
+
+enum AccountRole {
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+// ─────────────────────────────────────────
+// Client & Account
+// ─────────────────────────────────────────
+
+model Client {
+  id        String    @id @default(cuid())
+  name      String
+  industry  String?
+  accounts  Account[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Account {
+  id             String        @id @default(cuid())
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  tiktokAdvId    String        @unique
+  name           String
+  accessToken    String
+  refreshToken   String
+  tokenExpiresAt DateTime
+  status         AccountStatus @default(ACTIVE)
+
+  users         UserAccount[]
+  campaigns     Campaign[]
+  metrics       PerformanceMetric[]
+  insights      AIInsight[]
+  strategies    AIStrategy[]
+  reports       Report[]
+  notifications Notification[]
+
+  lastSyncAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
+enum AccountStatus {
+  ACTIVE
+  PAUSED
+  DISCONNECTED
+}
+
+// ─────────────────────────────────────────
+// Campaign Structure
+// ─────────────────────────────────────────
+
+model Campaign {
+  id               String              @id @default(cuid())
+  accountId        String
+  account          Account             @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tiktokCampaignId String
+  name             String
+  objective        String
+  budget           Float
+  budgetMode       String // DAILY, LIFETIME
+  status           String
+  adGroups         AdGroup[]
+  metrics          PerformanceMetric[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@unique([accountId, tiktokCampaignId])
+  @@index([accountId])
+}
+
+model AdGroup {
+  id              String              @id @default(cuid())
+  campaignId      String
+  campaign        Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  tiktokAdGroupId String
+  name            String
+  targeting       Json // 타겟팅 설정 전체
+  bidStrategy     String
+  bidAmount       Float?
+  status          String
+  ads             Ad[]
+  metrics         PerformanceMetric[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@unique([campaignId, tiktokAdGroupId])
+  @@index([campaignId])
+}
+
+model Ad {
+  id         String              @id @default(cuid())
+  adGroupId  String
+  adGroup    AdGroup             @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+  tiktokAdId String
+  creativeId String?
+  creative   Creative?           @relation(fields: [creativeId], references: [id])
+  name       String
+  status     String
+  metrics    PerformanceMetric[]
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  @@unique([adGroupId, tiktokAdId])
+  @@index([adGroupId])
+  @@index([creativeId])
+}
+
+// ─────────────────────────────────────────
+// Creative (소재)
+// ─────────────────────────────────────────
+
+model Creative {
+  id               String   @id @default(cuid())
+  tiktokCreativeId String   @unique
+  type             CreativeType
+  thumbnailUrl     String?
+  videoUrl         String?
+  imageUrl         String?
+  duration         Int? // 영상 길이 (초)
+
+  // AI 분석 태그
+  tags      Json?  // ["인물", "제품", "텍스트오버레이"]
+  hookScore Float? // 첫 3초 효과 점수 (0-100)
+
+  ads     Ad[]
+  metrics PerformanceMetric[]
+  fatigue CreativeFatigue[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CreativeType {
+  VIDEO
+  IMAGE
+  CAROUSEL
+}
+
+model CreativeFatigue {
+  id                  String           @id @default(cuid())
+  creativeId          String
+  creative            Creative         @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+  date                DateTime         @db.Date
+  fatigueIndex        Float // 0-100 (높을수록 피로도 높음)
+  peakPerformanceDate DateTime?
+  daysActive          Int
+  performanceTrend    PerformanceTrend
+  recommendedAction   String?
+  createdAt           DateTime         @default(now())
+
+  @@unique([creativeId, date])
+  @@index([creativeId])
+}
+
+enum PerformanceTrend {
+  RISING
+  STABLE
+  DECLINING
+  EXHAUSTED
+}
+
+// ─────────────────────────────────────────
+// Performance Metrics (성과 데이터)
+// ─────────────────────────────────────────
+
+model PerformanceMetric {
+  id         String    @id @default(cuid())
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  adGroupId  String?
+  adGroup    AdGroup?  @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+  adId       String?
+  ad         Ad?       @relation(fields: [adId], references: [id], onDelete: Cascade)
+  creativeId String?
+  creative   Creative? @relation(fields: [creativeId], references: [id], onDelete: Cascade)
+
+  date  DateTime    @db.Date
+  level MetricLevel
+
+  // 기본 메트릭
+  spend       Float @default(0)
+  impressions Int   @default(0)
+  clicks      Int   @default(0)
+  conversions Int   @default(0)
+
+  // 계산 메트릭
+  ctr  Float? // Click Through Rate
+  cvr  Float? // Conversion Rate
+  cpc  Float? // Cost Per Click
+  cpm  Float? // Cost Per Mille
+  cpa  Float? // Cost Per Acquisition
+  roas Float? // Return On Ad Spend
+
+  // 영상 메트릭
+  videoViews       Int?
+  videoWatched2s   Int?
+  videoWatched6s   Int?
+  avgVideoPlayTime Float?
+
+  createdAt DateTime @default(now())
+
+  @@unique([accountId, date, level, campaignId, adGroupId, adId, creativeId])
+  @@index([accountId, date])
+  @@index([creativeId, date])
+  @@index([campaignId, date])
+}
+
+enum MetricLevel {
+  ACCOUNT
+  CAMPAIGN
+  ADGROUP
+  AD
+  CREATIVE
+}
+
+// ─────────────────────────────────────────
+// AI Insights & Strategies
+// ─────────────────────────────────────────
+
+model AIInsight {
+  id        String      @id @default(cuid())
+  accountId String
+  account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type      InsightType
+  severity  Severity
+  title     String
+  summary   String      @db.Text
+  details   Json // 상세 분석 데이터
+  metrics   Json? // 관련 메트릭 스냅샷
+
+  strategies AIStrategy[]
+
+  generatedAt DateTime  @default(now())
+  expiresAt   DateTime?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+
+  @@index([accountId, generatedAt])
+  @@index([accountId, type])
+}
+
+enum InsightType {
+  DAILY_SUMMARY // 일간 요약
+  ANOMALY // 이상 탐지
+  TREND // 트렌드 분석
+  CREATIVE // 소재 분석
+  PREDICTION // 예측
+}
+
+enum Severity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model AIStrategy {
+  id        String     @id @default(cuid())
+  accountId String
+  account   Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  insightId String?
+  insight   AIInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
+
+  type        StrategyType
+  priority    Priority
+  title       String
+  description String       @db.Text
+
+  // 액션 아이템
+  actionItems    Json // [{action, target, value, reason}]
+  expectedImpact Json // {metric, change, confidence}
+  difficulty     Difficulty
+
+  // 상태 추적
+  status         StrategyStatus @default(PENDING)
+  acceptedAt     DateTime?
+  completedAt    DateTime?
+  rejectedReason String?
+  actualResult   Json? // 실행 후 실제 결과
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([accountId, status])
+  @@index([accountId, createdAt])
+}
+
+enum StrategyType {
+  BUDGET // 예산 최적화
+  CAMPAIGN // 캠페인 운영
+  TARGETING // 타겟팅 최적화
+  CREATIVE // 소재 전략
+  BIDDING // 입찰 전략
+}
+
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum StrategyStatus {
+  PENDING
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  EXPIRED
+}
+
+// ─────────────────────────────────────────
+// Reports & Notifications
+// ─────────────────────────────────────────
+
+model Report {
+  id          String       @id @default(cuid())
+  accountId   String
+  account     Account      @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type        ReportType
+  title       String       @default("성과 리포트")
+  status      ReportStatus @default(PENDING)
+  periodStart DateTime     @db.Date
+  periodEnd   DateTime     @db.Date
+  content     Json? // 리포트 내용
+  fileUrl     String?
+  fileSize    Int?
+  options     Json? // 생성 옵션
+  errorMessage String?
+  createdAt   DateTime     @default(now())
+  completedAt DateTime?
+  sentVia     Json? // ["SLACK", "KAKAO"]
+  sentAt      DateTime?
+
+  @@index([accountId, createdAt])
+  @@index([accountId, status])
+}
+
+enum ReportStatus {
+  PENDING
+  GENERATING
+  COMPLETED
+  FAILED
+}
+
+enum ReportType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  CUSTOM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountId String?
+  account   Account?         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  INSIGHT
+  STRATEGY
+  ANOMALY
+  REPORT
+  SYSTEM
+}
+
+// ─────────────────────────────────────────
+// Job Queue (배치 작업 추적)
+// ─────────────────────────────────────────
+
+model JobQueue {
+  id          String    @id @default(cuid())
+  type        String // SYNC_DATA, GENERATE_INSIGHT, GENERATE_REPORT
+  accountId   String?
+  status      String    @default("PENDING") // PENDING, RUNNING, COMPLETED, FAILED
+  payload     Json?
+  result      Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([type, status])
+  @@index([accountId])
+}

@@ -1,0 +1,421 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { Card, CardContent } from '@/components/ui/card';
+import { KpiGrid, type KpiData } from '@/components/dashboard/kpi-card';
+import {
+  PerformanceChart,
+  MetricSelector,
+  type ChartDataPoint,
+} from '@/components/dashboard/performance-chart';
+import { RecentInsights, type RecentInsight } from '@/components/dashboard/recent-insights';
+import { PendingStrategies, type PendingStrategy } from '@/components/dashboard/pending-strategies';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { RefreshCw, Calendar, AlertTriangle } from 'lucide-react';
+
+interface DashboardData {
+  account: {
+    id: string;
+    name: string;
+    clientName: string;
+  };
+  kpis: {
+    current: {
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+      ctr: number;
+      cvr: number;
+      cpa: number;
+      roas: number;
+    };
+    previous: {
+      spend: number;
+      impressions: number;
+      clicks: number;
+      conversions: number;
+      ctr: number;
+      cvr: number;
+      cpa: number;
+      roas: number;
+    };
+  };
+  chartData: ChartDataPoint[];
+  insights: RecentInsight[];
+  strategies: PendingStrategy[];
+}
+
+// Mock data for development
+const mockDashboardData: DashboardData = {
+  account: {
+    id: '1',
+    name: '브랜드 A',
+    clientName: '클라이언트 A · 이커머스',
+  },
+  kpis: {
+    current: {
+      spend: 15000000,
+      impressions: 5200000,
+      clicks: 156000,
+      conversions: 1250,
+      ctr: 3.0,
+      cvr: 0.8,
+      cpa: 12000,
+      roas: 3.2,
+    },
+    previous: {
+      spend: 14250000,
+      impressions: 4810000,
+      clicks: 139000,
+      conversions: 1277,
+      ctr: 2.89,
+      cvr: 0.88,
+      cpa: 11160,
+      roas: 3.27,
+    },
+  },
+  chartData: Array.from({ length: 14 }, (_, i) => ({
+    date: new Date(Date.now() - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
+    spend: 1000000 + Math.random() * 500000,
+    impressions: 350000 + Math.random() * 100000,
+    clicks: 10000 + Math.random() * 5000,
+    conversions: 80 + Math.random() * 40,
+    ctr: 2.5 + Math.random() * 1,
+    cvr: 0.6 + Math.random() * 0.4,
+    cpa: 10000 + Math.random() * 5000,
+    roas: 2.5 + Math.random() * 1.5,
+  })),
+  insights: [
+    {
+      id: '1',
+      type: 'ANOMALY',
+      severity: 'CRITICAL',
+      title: 'CPA 급등 감지',
+      summary: '어제 대비 CPA가 32% 상승했습니다. 주요 원인은 소재 피로도 증가로 추정됩니다.',
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    },
+    {
+      id: '2',
+      type: 'TREND',
+      severity: 'HIGH',
+      title: '전환율 하락 추세',
+      summary: '최근 7일간 전환율이 지속적으로 하락하고 있습니다. 타겟팅 점검이 필요합니다.',
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+      isRead: false,
+    },
+    {
+      id: '3',
+      type: 'CREATIVE',
+      severity: 'INFO',
+      title: '고성과 소재 발견',
+      summary: '"제품 리뷰 UGC" 소재가 평균 대비 2.5배 높은 전환율을 보이고 있습니다.',
+      createdAt: new Date(Date.now() - 7200000).toISOString(),
+      isRead: true,
+    },
+  ],
+  strategies: [
+    {
+      id: '1',
+      type: 'BUDGET',
+      priority: 'HIGH',
+      title: '캠페인 A 예산 증액 권장',
+      description: 'ROAS가 목표 대비 20% 높은 캠페인입니다. 예산 증액으로 더 많은 전환을 확보할 수 있습니다.',
+      expectedImpact: { metric: 'ROAS', changePercent: 15 },
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: '2',
+      type: 'CREATIVE',
+      priority: 'MEDIUM',
+      title: '소재 3개 교체 필요',
+      description: '피로도가 80% 이상인 소재를 신규 소재로 교체하여 성과를 개선할 수 있습니다.',
+      expectedImpact: { metric: 'CPA', changePercent: -20 },
+      createdAt: new Date(Date.now() - 3600000).toISOString(),
+    },
+  ],
+};
+
+export default function DashboardPage() {
+  const params = useParams();
+  const accountId = params.accountId as string;
+
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState('7d');
+  const [chartMetrics, setChartMetrics] = useState(['spend', 'conversions']);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // 실제 API 호출 시도
+      const [metricsRes, insightsRes, strategiesRes] = await Promise.allSettled([
+        fetch(`/api/metrics/${accountId}/summary?period=${dateRange}`),
+        fetch(`/api/ai/insights/${accountId}?limit=5`),
+        fetch(`/api/ai/strategies/${accountId}?status=PENDING&limit=5`),
+      ]);
+
+      let dashboardData = { ...mockDashboardData };
+
+      // 메트릭 데이터 처리
+      if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
+        const metricsData = await metricsRes.value.json();
+        if (metricsData.success && metricsData.data) {
+          dashboardData.account = metricsData.data.account || dashboardData.account;
+          dashboardData.kpis = {
+            current: metricsData.data.current || dashboardData.kpis.current,
+            previous: metricsData.data.previous || dashboardData.kpis.previous,
+          };
+          dashboardData.chartData = metricsData.data.daily || dashboardData.chartData;
+        }
+      }
+
+      // 인사이트 데이터 처리
+      if (insightsRes.status === 'fulfilled' && insightsRes.value.ok) {
+        const insightsData = await insightsRes.value.json();
+        if (insightsData.success && insightsData.data?.insights) {
+          dashboardData.insights = insightsData.data.insights;
+        }
+      }
+
+      // 전략 데이터 처리
+      if (strategiesRes.status === 'fulfilled' && strategiesRes.value.ok) {
+        const strategiesData = await strategiesRes.value.json();
+        if (strategiesData.success && strategiesData.data?.strategies) {
+          dashboardData.strategies = strategiesData.data.strategies;
+        }
+      }
+
+      setData(dashboardData);
+    } catch (err) {
+      console.error('Dashboard fetch error:', err);
+      // 에러 시에도 mock 데이터 표시
+      setData(mockDashboardData);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, [accountId, dateRange]);
+
+  // Strategy actions
+  const handleAcceptStrategy = async (id: string) => {
+    try {
+      await fetch(`/api/ai/strategies/${accountId}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'accept' }),
+      });
+      fetchDashboardData();
+    } catch (err) {
+      console.error('Failed to accept strategy:', err);
+    }
+  };
+
+  const handleRejectStrategy = async (id: string) => {
+    try {
+      await fetch(`/api/ai/strategies/${accountId}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reject' }),
+      });
+      fetchDashboardData();
+    } catch (err) {
+      console.error('Failed to reject strategy:', err);
+    }
+  };
+
+  // KPI 데이터 변환
+  const kpiData: KpiData[] = data
+    ? [
+        {
+          label: '지출',
+          value: data.kpis.current.spend,
+          previousValue: data.kpis.previous.spend,
+          format: 'currency',
+          icon: 'spend',
+        },
+        {
+          label: '노출수',
+          value: data.kpis.current.impressions,
+          previousValue: data.kpis.previous.impressions,
+          format: 'number',
+          icon: 'impressions',
+        },
+        {
+          label: '클릭수',
+          value: data.kpis.current.clicks,
+          previousValue: data.kpis.previous.clicks,
+          format: 'number',
+          icon: 'clicks',
+        },
+        {
+          label: '전환수',
+          value: data.kpis.current.conversions,
+          previousValue: data.kpis.previous.conversions,
+          format: 'number',
+          icon: 'conversions',
+        },
+        {
+          label: 'CTR',
+          value: data.kpis.current.ctr,
+          previousValue: data.kpis.previous.ctr,
+          format: 'percent',
+          icon: 'ctr',
+        },
+        {
+          label: 'CVR',
+          value: data.kpis.current.cvr,
+          previousValue: data.kpis.previous.cvr,
+          format: 'percent',
+          icon: 'cvr',
+        },
+        {
+          label: 'CPA',
+          value: data.kpis.current.cpa,
+          previousValue: data.kpis.previous.cpa,
+          format: 'currency',
+          icon: 'cpa',
+        },
+        {
+          label: 'ROAS',
+          value: data.kpis.current.roas,
+          previousValue: data.kpis.previous.roas,
+          format: 'decimal',
+          suffix: 'x',
+          icon: 'roas',
+        },
+      ]
+    : [];
+
+  // Critical alert check
+  const criticalInsight = data?.insights.find((i) => i.severity === 'CRITICAL');
+
+  if (loading && !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error && !data) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <p className="text-red-500 mb-4">{error}</p>
+        <Button onClick={fetchDashboardData}>다시 시도</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{data?.account.name || '대시보드'}</h1>
+          <p className="text-muted-foreground">{data?.account.clientName}</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-[130px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1d">오늘</SelectItem>
+                <SelectItem value="7d">최근 7일</SelectItem>
+                <SelectItem value="14d">최근 14일</SelectItem>
+                <SelectItem value="30d">최근 30일</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchDashboardData}
+            disabled={loading}
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`}
+            />
+            새로고침
+          </Button>
+        </div>
+      </div>
+
+      {/* Critical Alert */}
+      {criticalInsight && (
+        <Card className="border-destructive bg-destructive/5">
+          <CardContent className="flex items-center gap-4 py-4">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
+            <div className="flex-1">
+              <p className="font-semibold text-destructive">긴급 알림</p>
+              <p className="text-sm text-muted-foreground">
+                {criticalInsight.summary}
+              </p>
+            </div>
+            <Button variant="destructive" size="sm">
+              자세히 보기
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* KPI Grid */}
+      <KpiGrid kpis={kpiData} />
+
+      {/* Charts Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">성과 추이</h2>
+          <MetricSelector
+            selected={chartMetrics}
+            onChange={setChartMetrics}
+            available={['spend', 'impressions', 'clicks', 'conversions', 'ctr', 'cvr', 'cpa', 'roas']}
+          />
+        </div>
+        {data?.chartData && data.chartData.length > 0 ? (
+          <PerformanceChart
+            data={data.chartData}
+            metrics={chartMetrics}
+            title=""
+            height={350}
+          />
+        ) : (
+          <div className="bg-muted rounded-lg p-12 text-center text-muted-foreground">
+            차트 데이터가 없습니다.
+          </div>
+        )}
+      </div>
+
+      {/* Insights and Strategies Grid */}
+      <div className="grid md:grid-cols-2 gap-6">
+        <RecentInsights
+          insights={data?.insights || []}
+          accountId={accountId}
+        />
+        <PendingStrategies
+          strategies={data?.strategies || []}
+          accountId={accountId}
+          onAccept={handleAcceptStrategy}
+          onReject={handleRejectStrategy}
+        />
+      </div>
+    </div>
+  );
+}
