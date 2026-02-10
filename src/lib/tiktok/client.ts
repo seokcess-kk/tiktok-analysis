@@ -258,7 +258,7 @@ export class TikTokClient {
       endDate,
     });
 
-    return response.list.map((item) => {
+    const results = response.list.map((item) => {
       const metrics = (item as { metrics: Record<string, string> }).metrics;
       const dimensions = (item as { dimensions: Record<string, string> }).dimensions;
       const spend = Number(metrics.spend) || 0;
@@ -266,8 +266,12 @@ export class TikTokClient {
       const clicks = Number(metrics.clicks) || 0;
       const conversions = Number(metrics.conversion) || 0;
 
+      // 날짜 형식 표준화: "2026-02-06 00:00:00" → "2026-02-06"
+      const rawDate = dimensions.stat_time_day || '';
+      const date = rawDate.split(' ')[0];
+
       return {
-        date: dimensions.stat_time_day,
+        date,
         spend,
         impressions,
         clicks,
@@ -277,12 +281,16 @@ export class TikTokClient {
         cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
         cvr: clicks > 0 ? (conversions / clicks) * 100 : 0,
         cpa: conversions > 0 ? spend / conversions : 0,
+        roas: spend > 0 ? (conversions * 50000) / spend : 0, // 가정: 전환당 50,000원
         video_play_actions: Number(metrics.video_play_actions) || undefined,
         video_watched_2s: Number(metrics.video_watched_2s) || undefined,
         video_watched_6s: Number(metrics.video_watched_6s) || undefined,
         average_video_play: Number(metrics.average_video_play) || undefined,
       };
     });
+
+    // 날짜 순으로 정렬 (오름차순)
+    return results.sort((a, b) => a.date.localeCompare(b.date));
   }
 }
 
