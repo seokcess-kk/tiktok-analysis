@@ -73,7 +73,12 @@ export async function GET(
 
     // Period comparison if requested
     const comparePeriod = searchParams.get('compare') === 'true';
-    let comparison = null;
+    let comparison: {
+      period: { startDate: string; endDate: string };
+      totals: { spend: number; impressions: number; clicks: number; conversions: number };
+      averages: { ctr: number; cpc: number; cpa: number; roas: number };
+      changes: { spend: number; impressions: number; clicks: number; conversions: number; ctr: number; cpc: number; cpa: number; roas: number };
+    } | null = null;
 
     if (comparePeriod) {
       // Calculate previous period (same duration)

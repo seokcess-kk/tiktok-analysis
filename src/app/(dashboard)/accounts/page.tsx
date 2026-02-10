@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useEffect, useState, Suspense, useMemo, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Building2, TrendingUp, TrendingDown, Minus, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
+import { FilterBar, SearchInput, SortDropdown, FilterDropdown, accountSortOptions, industryOptions, statusOptions } from '@/components/filters';
 
 interface Account {
   id: string;
@@ -83,11 +84,38 @@ function StatusMessage({ searchParams }: { searchParams: URLSearchParams }) {
 
 function AccountsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [metricsMap, setMetricsMap] = useState<Record<string, AccountMetrics>>({});
   const [loading, setLoading] = useState(true);
   const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [connecting, setConnecting] = useState(false);
+
+  // URL 기반 필터 상태
+  const searchQuery = searchParams.get('q') || '';
+  const sortBy = searchParams.get('sort') || 'spend_desc';
+  const industryFilter = searchParams.get('industry') || 'all';
+  const statusFilter = searchParams.get('status') || 'all';
+
+  // URL 파라미터 업데이트 함수
+  const updateUrlParams = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value && value !== 'all' && value !== '') {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+    const queryString = params.toString();
+    router.push(queryString ? `${pathname}?${queryString}` : pathname, { scroll: false });
+  }, [searchParams, router, pathname]);
+
+  const setSearchQuery = (value: string) => updateUrlParams({ q: value });
+  const setSortBy = (value: string) => updateUrlParams({ sort: value });
+  const setIndustryFilter = (value: string) => updateUrlParams({ industry: value });
+  const setStatusFilter = (value: string) => updateUrlParams({ status: value });
 
   useEffect(() => {
     fetchAccounts();
@@ -148,6 +176,61 @@ function AccountsContent() {
     metrics: metricsMap[account.id] || { spend: 0, roas: 0, cpa: 0, change: { spend: 0, roas: 0, cpa: 0 } },
   }));
 
+  // Filter and sort accounts
+  const filteredAndSortedAccounts = useMemo(() => {
+    let result = [...accountsWithMetrics];
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(
+        (account) =>
+          account.name.toLowerCase().includes(query) ||
+          account.client.name.toLowerCase().includes(query)
+      );
+    }
+
+    // Industry filter
+    if (industryFilter !== 'all') {
+      result = result.filter(
+        (account) => account.client.industry?.toLowerCase() === industryFilter
+      );
+    }
+
+    // Status filter
+    if (statusFilter !== 'all') {
+      result = result.filter((account) => account.status === statusFilter);
+    }
+
+    // Sort
+    const [sortField, sortOrder] = sortBy.split('_');
+    result.sort((a, b) => {
+      let comparison = 0;
+      switch (sortField) {
+        case 'name':
+          comparison = a.name.localeCompare(b.name);
+          break;
+        case 'spend':
+          comparison = a.metrics.spend - b.metrics.spend;
+          break;
+        case 'roas':
+          comparison = a.metrics.roas - b.metrics.roas;
+          break;
+        case 'cpa':
+          comparison = a.metrics.cpa - b.metrics.cpa;
+          break;
+        case 'updated':
+          comparison = 0; // TODO: Add updatedAt field
+          break;
+        default:
+          comparison = 0;
+      }
+      return sortOrder === 'desc' ? -comparison : comparison;
+    });
+
+    return result;
+  }, [accountsWithMetrics, searchQuery, industryFilter, statusFilter, sortBy]);
+
   const totalSpend = accountsWithMetrics.reduce((sum, a) => sum + a.metrics.spend, 0);
   const avgRoas = accountsWithMetrics.length > 0
     ? accountsWithMetrics.reduce((sum, a) => sum + a.metrics.roas, 0) / accountsWithMetrics.length
@@ -176,6 +259,32 @@ function AccountsContent() {
           {connecting ? '연결 중...' : '계정 연동'}
         </Button>
       </div>
+
+      {/* Filter Bar */}
+      <FilterBar>
+        <SearchInput
+          value={searchQuery}
+          onChange={setSearchQuery}
+          placeholder="계정 또는 클라이언트 검색..."
+        />
+        <SortDropdown
+          options={accountSortOptions}
+          value={sortBy}
+          onChange={setSortBy}
+        />
+        <FilterDropdown
+          label="업종"
+          options={industryOptions}
+          value={industryFilter}
+          onChange={setIndustryFilter}
+        />
+        <FilterDropdown
+          label="상태"
+          options={statusOptions}
+          value={statusFilter}
+          onChange={setStatusFilter}
+        />
+      </FilterBar>
 
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -245,7 +354,25 @@ function AccountsContent() {
       {/* Account List */}
       {!loading && accounts.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {accountsWithMetrics.map((account) => (
+          {filteredAndSortedAccounts.length === 0 ? (
+            <Card className="col-span-full p-8">
+              <div className="text-center space-y-2">
+                <p className="text-muted-foreground">검색 결과가 없습니다</p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setIndustryFilter('all');
+                    setStatusFilter('all');
+                  }}
+                >
+                  필터 초기화
+                </Button>
+              </div>
+            </Card>
+          ) : (
+          filteredAndSortedAccounts.map((account) => (
             <Link key={account.id} href={`/accounts/${account.id}`}>
               <Card className="hover:border-primary/50 transition-colors cursor-pointer">
                 <CardHeader>
@@ -293,7 +420,8 @@ function AccountsContent() {
                 </CardContent>
               </Card>
             </Link>
-          ))}
+          ))
+          )}
         </div>
       )}
     </div>

@@ -217,9 +217,13 @@ export async function generateReport(options: GenerateReportOptions): Promise<st
       periodStart,
       periodEnd,
       fileUrl: null, // Will be generated on-demand via /download endpoint
-      insights: insights.map((i) => ({ id: i.id, title: i.title, type: i.type, severity: i.severity, summary: i.summary })),
-      strategies: strategies.map((s) => ({ id: s.id, title: s.title, type: s.type, status: s.status, priority: s.priority })),
-      generatedAt: new Date(),
+      content: {
+        insights: insights.map((i) => ({ id: i.id, title: i.title, type: i.type, severity: i.severity, summary: i.summary })),
+        strategies: strategies.map((s) => ({ id: s.id, title: s.title, type: s.type, status: s.status, priority: s.priority })),
+        htmlContent,
+      },
+      completedAt: new Date(),
+      status: 'COMPLETED',
     },
   });
 

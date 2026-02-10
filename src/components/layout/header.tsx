@@ -11,21 +11,30 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Bell, User, LogOut, Settings } from 'lucide-react';
+import { MobileSidebar } from './mobile-sidebar';
+import { CommandMenu } from '@/components/common/command-menu';
 
 interface HeaderProps {
   title?: string;
+  accountId?: string;
 }
 
-export function Header({ title }: HeaderProps) {
+export function Header({ title, accountId }: HeaderProps) {
   const { data: session } = useSession();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6">
-      <div>
-        {title && <h1 className="text-xl font-semibold">{title}</h1>}
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
+      <div className="flex items-center gap-3">
+        {/* Mobile Menu */}
+        <MobileSidebar accountId={accountId} />
+
+        {title && <h1 className="text-lg md:text-xl font-semibold">{title}</h1>}
       </div>
 
       <div className="flex items-center gap-4">
+        {/* Global Search */}
+        <CommandMenu accountId={accountId} />
+
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />

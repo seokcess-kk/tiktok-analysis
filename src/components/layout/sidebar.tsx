@@ -66,7 +66,7 @@ export function Sidebar({ accountId }: SidebarProps) {
   const navItems = accountId ? getAccountNavItems(accountId) : mainNavItems;
 
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background">
+    <aside className="hidden md:block fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background">
       {/* Logo */}
       <div className="flex h-16 items-center border-b px-6">
         <Link href="/" className="flex items-center gap-2">

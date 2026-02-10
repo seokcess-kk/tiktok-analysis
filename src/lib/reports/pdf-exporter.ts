@@ -37,7 +37,11 @@ export function generatePrintableHTML(
   htmlContent: string,
   options: PDFExportOptions = {}
 ): string {
-  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const opts = {
+    format: options.format || DEFAULT_OPTIONS.format,
+    orientation: options.orientation || DEFAULT_OPTIONS.orientation,
+    margin: options.margin || DEFAULT_OPTIONS.margin!,
+  };
 
   return `
 <!DOCTYPE html>

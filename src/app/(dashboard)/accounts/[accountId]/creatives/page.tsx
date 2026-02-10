@@ -261,42 +261,24 @@ export default function CreativesPage() {
           } else {
             setCreatives(result.data.creatives);
 
-          // Update summary data if available
-          if (result.data.summary) {
-            setGradeDistribution(result.data.summary.gradeDistribution || mockGradeDistribution);
+            // Update summary data if available
+            if (result.data.summary) {
+              setGradeDistribution(result.data.summary.gradeDistribution || mockGradeDistribution);
 
-            // Calculate fatigue overview from creatives
-            const creativesData = result.data.creatives || [];
-            const fatigueData = {
-              healthyCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index < 40).length,
-              warningCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 40 && c.fatigue.index < 70).length,
-              criticalCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 70 && c.fatigue.trend !== 'EXHAUSTED').length,
-              exhaustedCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.trend === 'EXHAUSTED').length,
-              avgLifespan: Math.round(
-                creativesData.reduce((sum: number, c: any) => sum + (c.fatigue?.daysActive || 0), 0) /
-                (creativesData.length || 1)
-              ),
-            };
-            setFatigueOverview(fatigueData);
-          }
-
-          // Update summary data if available
-          if (result.data.summary) {
-            setGradeDistribution(result.data.summary.gradeDistribution || mockGradeDistribution);
-
-            // Calculate fatigue overview from creatives
-            const creativesData = result.data.creatives || [];
-            const fatigueData = {
-              healthyCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index < 40).length,
-              warningCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 40 && c.fatigue.index < 70).length,
-              criticalCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 70 && c.fatigue.trend !== 'EXHAUSTED').length,
-              exhaustedCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.trend === 'EXHAUSTED').length,
-              avgLifespan: Math.round(
-                creativesData.reduce((sum: number, c: any) => sum + (c.fatigue?.daysActive || 0), 0) /
-                (creativesData.length || 1)
-              ),
-            };
-            setFatigueOverview(fatigueData);
+              // Calculate fatigue overview from creatives
+              const creativesData = result.data.creatives || [];
+              const fatigueData = {
+                healthyCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index < 40).length,
+                warningCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 40 && c.fatigue.index < 70).length,
+                criticalCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 70 && c.fatigue.trend !== 'EXHAUSTED').length,
+                exhaustedCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.trend === 'EXHAUSTED').length,
+                avgLifespan: Math.round(
+                  creativesData.reduce((sum: number, c: any) => sum + (c.fatigue?.daysActive || 0), 0) /
+                  (creativesData.length || 1)
+                ),
+              };
+              setFatigueOverview(fatigueData);
+            }
           }
         } else {
           console.warn('API returned unsuccessful response');

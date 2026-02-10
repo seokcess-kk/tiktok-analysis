@@ -146,6 +146,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       where: { id: reportId },
     });
 
+    if (!report) {
+      return NextResponse.json(
+        { success: false, error: { code: 'NOT_FOUND', message: 'Report not found after creation' } },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
       data: {

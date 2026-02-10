@@ -32,14 +32,25 @@ export interface ChartDataPoint {
   cvr?: number;
   cpa?: number;
   roas?: number;
+  // 비교 데이터
+  prev_spend?: number;
+  prev_impressions?: number;
+  prev_clicks?: number;
+  prev_conversions?: number;
+  prev_ctr?: number;
+  prev_cvr?: number;
+  prev_cpa?: number;
+  prev_roas?: number;
 }
 
 interface PerformanceChartProps {
   data: ChartDataPoint[];
+  compareData?: ChartDataPoint[];
   metrics?: string[];
   title?: string;
   type?: 'line' | 'bar';
   height?: number;
+  showComparison?: boolean;
 }
 
 const metricConfig: Record<string, { label: string; color: string; format: (v: number) => string }> = {
@@ -87,20 +98,37 @@ const metricConfig: Record<string, { label: string; color: string; format: (v: n
 
 export function PerformanceChart({
   data,
+  compareData,
   metrics = ['spend', 'conversions'],
   title = '성과 추이',
   type = 'line',
   height = 300,
+  showComparison = false,
 }: PerformanceChartProps) {
   const formattedData = useMemo(() => {
-    return data.map((d) => ({
-      ...d,
-      date: new Date(d.date).toLocaleDateString('ko-KR', {
-        month: 'short',
-        day: 'numeric',
-      }),
-    }));
-  }, [data]);
+    return data.map((d, index) => {
+      const formatted: Record<string, unknown> = {
+        ...d,
+        date: new Date(d.date).toLocaleDateString('ko-KR', {
+          month: 'short',
+          day: 'numeric',
+        }),
+      };
+
+      // 비교 데이터가 있으면 병합
+      if (showComparison && compareData && compareData[index]) {
+        const comp = compareData[index];
+        metrics.forEach((metric) => {
+          const key = metric as keyof ChartDataPoint;
+          if (comp[key] !== undefined) {
+            formatted[`prev_${metric}`] = comp[key];
+          }
+        });
+      }
+
+      return formatted;
+    });
+  }, [data, compareData, showComparison, metrics]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -165,6 +193,19 @@ export function PerformanceChart({
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 4 }}
+                />
+              ))}
+              {showComparison && metrics.map((metric) => (
+                <Line
+                  key={`prev_${metric}`}
+                  type="monotone"
+                  dataKey={`prev_${metric}`}
+                  name={`${metricConfig[metric]?.label || metric} (이전)`}
+                  stroke={metricConfig[metric]?.color || '#8884d8'}
+                  strokeWidth={1.5}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  opacity={0.5}
                 />
               ))}
             </LineChart>

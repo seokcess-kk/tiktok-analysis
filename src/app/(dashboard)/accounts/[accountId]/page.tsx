@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import { subDays } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { KpiGrid, type KpiData } from '@/components/dashboard/kpi-card';
 import {
@@ -11,15 +12,14 @@ import {
 } from '@/components/dashboard/performance-chart';
 import { RecentInsights, type RecentInsight } from '@/components/dashboard/recent-insights';
 import { PendingStrategies, type PendingStrategy } from '@/components/dashboard/pending-strategies';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { RefreshCw, Calendar, AlertTriangle } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { DateRangePicker } from '@/components/filters';
+import { useDateRangeUrlState, useUrlState } from '@/hooks';
+import { DashboardSkeleton } from '@/components/common';
+import { Label } from '@/components/ui/label';
+import type { DateRange } from 'react-day-picker';
 
 interface DashboardData {
   account: {
@@ -50,6 +50,7 @@ interface DashboardData {
     };
   };
   chartData: ChartDataPoint[];
+  compareChartData?: ChartDataPoint[];
   insights: RecentInsight[];
   strategies: PendingStrategy[];
 }
@@ -152,27 +153,38 @@ export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [dateRange, setDateRange] = useState('7d');
   const [chartMetrics, setChartMetrics] = useState(['spend', 'conversions']);
+
+  // URL 기반 날짜 범위 상태
+  const [dateRange, setDateRange] = useDateRangeUrlState();
+
+  // URL 기반 비교 토글 상태
+  const [compareParam, setCompareParam] = useUrlState<string>('compare', { defaultValue: 'false' });
+  const showComparison = compareParam === 'true';
+
+  // 기본값: 최근 7일
+  const effectiveDateRange = useMemo<DateRange>(() => {
+    if (dateRange.from && dateRange.to) {
+      return { from: dateRange.from, to: dateRange.to };
+    }
+    return {
+      from: subDays(new Date(), 6),
+      to: new Date(),
+    };
+  }, [dateRange]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // dateRange를 days 숫자로 변환
-      const daysMap: Record<string, number> = { '1d': 1, '7d': 7, '14d': 14, '30d': 30 };
-      const days = daysMap[dateRange] || 7;
-
       // 현재 기간과 이전 기간 날짜 계산
-      const currentEndDate = new Date();
-      const currentStartDate = new Date();
-      currentStartDate.setDate(currentStartDate.getDate() - days);
+      const currentEndDate = effectiveDateRange.to || new Date();
+      const currentStartDate = effectiveDateRange.from || subDays(currentEndDate, 6);
 
-      const previousEndDate = new Date(currentStartDate);
-      previousEndDate.setDate(previousEndDate.getDate() - 1); // 현재 기간 바로 전날
-      const previousStartDate = new Date(previousEndDate);
-      previousStartDate.setDate(previousStartDate.getDate() - days);
+      const periodDuration = currentEndDate.getTime() - currentStartDate.getTime();
+      const previousEndDate = new Date(currentStartDate.getTime() - 1);
+      const previousStartDate = new Date(previousEndDate.getTime() - periodDuration);
 
       const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
@@ -223,7 +235,7 @@ export default function DashboardPage() {
       if (previousMetricsRes.status === 'fulfilled' && previousMetricsRes.value.ok) {
         const previousData = await previousMetricsRes.value.json();
         if (previousData.success && previousData.data) {
-          const { totals, averages } = previousData.data;
+          const { totals, averages, daily } = previousData.data;
           dashboardData.kpis.previous = {
             spend: totals.spend,
             impressions: totals.impressions,
@@ -234,6 +246,16 @@ export default function DashboardPage() {
             cpa: Math.round(averages.cpa),
             roas: Number(averages.roas.toFixed(2)),
           };
+          // 비교 차트 데이터
+          if (daily) {
+            dashboardData.compareChartData = daily.map((d: Record<string, unknown>) => ({
+              ...d,
+              ctr: d.ctr ? Number((d.ctr as number).toFixed(2)) : 0,
+              cvr: d.cvr ? Number((d.cvr as number).toFixed(2)) : 0,
+              cpa: d.cpa ? Math.round(d.cpa as number) : 0,
+              roas: d.roas ? Number((d.roas as number).toFixed(2)) : 0,
+            }));
+          }
         }
       }
 
@@ -265,7 +287,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, [accountId, dateRange]);
+  }, [accountId, effectiveDateRange]);
 
   // Strategy actions
   const handleAcceptStrategy = async (id: string) => {
@@ -361,11 +383,7 @@ export default function DashboardPage() {
   const criticalInsight = data?.insights.find((i) => i.severity === 'CRITICAL');
 
   if (loading && !data) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   if (error && !data) {
@@ -386,20 +404,14 @@ export default function DashboardPage() {
           <p className="text-muted-foreground">{data?.account.clientName}</p>
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <Select value={dateRange} onValueChange={setDateRange}>
-              <SelectTrigger className="w-[130px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1d">오늘</SelectItem>
-                <SelectItem value="7d">최근 7일</SelectItem>
-                <SelectItem value="14d">최근 14일</SelectItem>
-                <SelectItem value="30d">최근 30일</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <DateRangePicker
+            value={effectiveDateRange}
+            onChange={(range) => {
+              if (range?.from && range?.to) {
+                setDateRange({ from: range.from, to: range.to });
+              }
+            }}
+          />
           <Button
             variant="outline"
             onClick={fetchDashboardData}
@@ -436,8 +448,20 @@ export default function DashboardPage() {
 
       {/* Charts Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">성과 추이</h2>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">성과 추이</h2>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="compare-toggle"
+                checked={showComparison}
+                onCheckedChange={(checked) => setCompareParam(checked ? 'true' : 'false')}
+              />
+              <Label htmlFor="compare-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                이전 기간 비교
+              </Label>
+            </div>
+          </div>
           <MetricSelector
             selected={chartMetrics}
             onChange={setChartMetrics}
@@ -447,9 +471,11 @@ export default function DashboardPage() {
         {data?.chartData && data.chartData.length > 0 ? (
           <PerformanceChart
             data={data.chartData}
+            compareData={showComparison ? data.compareChartData : undefined}
             metrics={chartMetrics}
             title=""
             height={350}
+            showComparison={showComparison}
           />
         ) : (
           <div className="bg-muted rounded-lg p-12 text-center text-muted-foreground">
