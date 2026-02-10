@@ -10,7 +10,9 @@ export async function GET(
 ) {
   try {
     const { searchParams } = new URL(request.url);
-    const days = parseInt(searchParams.get('days') || '7', 10);
+    const days = Math.min(parseInt(searchParams.get('days') || '7', 10), 30); // 최대 30일
+    const startDateParam = searchParams.get('startDate');
+    const endDateParam = searchParams.get('endDate');
 
     const account = await prisma.account.findUnique({
       where: { id: params.accountId },
@@ -24,11 +26,21 @@ export async function GET(
     }
 
     // 날짜 범위 계산
-    const endDate = new Date();
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
     const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+    let startDate: Date;
+    let endDate: Date;
+
+    if (startDateParam && endDateParam) {
+      // 직접 날짜 지정
+      startDate = new Date(startDateParam);
+      endDate = new Date(endDateParam);
+    } else {
+      // days 기반 계산
+      endDate = new Date();
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+    }
 
     // TikTok API 클라이언트 생성
     const client = createTikTokClient(account.accessToken, account.tiktokAdvId);

@@ -258,24 +258,31 @@ export class TikTokClient {
       endDate,
     });
 
-    return response.list.map((item) => ({
-      date: item.stat_time_day as string,
-      spend: Number(item.spend) || 0,
-      impressions: Number(item.impressions) || 0,
-      clicks: Number(item.clicks) || 0,
-      conversions: Number(item.conversion) || 0,
-      ctr: Number(item.ctr) || 0,
-      cpc: Number(item.cpc) || 0,
-      cpm: Number(item.cpm) || 0,
-      cvr: item.conversion && item.clicks
-        ? (Number(item.conversion) / Number(item.clicks)) * 100
-        : 0,
-      cpa: Number(item.cost_per_conversion) || 0,
-      video_play_actions: Number(item.video_play_actions) || undefined,
-      video_watched_2s: Number(item.video_watched_2s) || undefined,
-      video_watched_6s: Number(item.video_watched_6s) || undefined,
-      average_video_play: Number(item.average_video_play) || undefined,
-    }));
+    return response.list.map((item) => {
+      const metrics = (item as { metrics: Record<string, string> }).metrics;
+      const dimensions = (item as { dimensions: Record<string, string> }).dimensions;
+      const spend = Number(metrics.spend) || 0;
+      const impressions = Number(metrics.impressions) || 0;
+      const clicks = Number(metrics.clicks) || 0;
+      const conversions = Number(metrics.conversion) || 0;
+
+      return {
+        date: dimensions.stat_time_day,
+        spend,
+        impressions,
+        clicks,
+        conversions,
+        ctr: impressions > 0 ? (clicks / impressions) * 100 : 0,
+        cpc: clicks > 0 ? spend / clicks : 0,
+        cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
+        cvr: clicks > 0 ? (conversions / clicks) * 100 : 0,
+        cpa: conversions > 0 ? spend / conversions : 0,
+        video_play_actions: Number(metrics.video_play_actions) || undefined,
+        video_watched_2s: Number(metrics.video_watched_2s) || undefined,
+        video_watched_6s: Number(metrics.video_watched_6s) || undefined,
+        average_video_play: Number(metrics.average_video_play) || undefined,
+      };
+    });
   }
 }
 
