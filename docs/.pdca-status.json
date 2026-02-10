@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-02-05T15:31:02.199Z",
+  "lastUpdated": "2026-02-10T04:39:56.375Z",
   "activeFeatures": [
     "tiktok-analysis",
     "db",
@@ -31,7 +31,9 @@
     "[notificationId]",
     "cache",
     "errors",
-    "logger"
+    "logger",
+    "privacy",
+    "terms"
   ],
   "primaryFeature": "tiktok-analysis",
   "features": {
@@ -44,9 +46,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T13:53:12.506Z",
-        "lastUpdated": "2026-02-05T14:00:51.898Z"
+        "lastUpdated": "2026-02-10T04:39:56.375Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\next-env.d.ts"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\next.config.js"
     },
     "db": {
       "phase": "do",
@@ -424,6 +426,32 @@
         "lastUpdated": "2026-02-05T15:29:38.265Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\lib\\logger\\index.ts"
+    },
+    "privacy": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-02-10T04:18:02.944Z",
+        "lastUpdated": "2026-02-10T04:18:02.944Z"
+      },
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\privacy\\page.tsx"
+    },
+    "terms": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-02-10T04:18:04.543Z",
+        "lastUpdated": "2026-02-10T04:18:04.543Z"
+      },
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\terms\\page.tsx"
     }
   },
   "pipeline": {
@@ -434,7 +462,7 @@
   "session": {
     "startedAt": "2026-02-01T07:00:00.000Z",
     "onboardingCompleted": true,
-    "lastActivity": "2026-02-05T15:31:02.199Z"
+    "lastActivity": "2026-02-10T04:39:56.375Z"
   },
   "history": [
     {
@@ -914,6 +942,36 @@
     {
       "timestamp": "2026-02-05T15:31:02.199Z",
       "feature": "ai",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T04:18:02.944Z",
+      "feature": "privacy",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T04:18:04.543Z",
+      "feature": "terms",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T04:18:29.391Z",
+      "feature": "tiktok-analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T04:38:10.657Z",
+      "feature": "tiktok-analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T04:39:56.375Z",
+      "feature": "tiktok-analysis",
       "phase": "do",
       "action": "updated"
     }

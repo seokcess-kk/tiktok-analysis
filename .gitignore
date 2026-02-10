@@ -52,3 +52,4 @@ docs/bkit-Best-Practice.pdf
 # Internal skills/commands (company-only, not for public repo)
 skills/github-integration/
 commands/github-stats.md
+.vercel
