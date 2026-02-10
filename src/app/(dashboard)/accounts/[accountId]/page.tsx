@@ -259,19 +259,35 @@ export default function DashboardPage() {
         }
       }
 
-      // 인사이트 데이터 처리
+      // 인사이트 데이터 처리 (API 응답 -> 컴포넌트 인터페이스 변환)
       if (insightsRes.status === 'fulfilled' && insightsRes.value.ok) {
         const insightsData = await insightsRes.value.json();
         if (insightsData.success && insightsData.data?.insights) {
-          dashboardData.insights = insightsData.data.insights;
+          dashboardData.insights = insightsData.data.insights.map((insight: Record<string, unknown>) => ({
+            id: insight.id,
+            type: insight.type,
+            severity: insight.severity,
+            title: insight.title,
+            summary: insight.summary,
+            createdAt: insight.generatedAt || insight.createdAt, // API는 generatedAt 사용
+            isRead: insight.isRead,
+          }));
         }
       }
 
-      // 전략 데이터 처리
+      // 전략 데이터 처리 (API 응답 -> 컴포넌트 인터페이스 변환)
       if (strategiesRes.status === 'fulfilled' && strategiesRes.value.ok) {
         const strategiesData = await strategiesRes.value.json();
         if (strategiesData.success && strategiesData.data?.strategies) {
-          dashboardData.strategies = strategiesData.data.strategies;
+          dashboardData.strategies = strategiesData.data.strategies.map((strategy: Record<string, unknown>) => ({
+            id: strategy.id,
+            type: strategy.type,
+            priority: strategy.priority,
+            title: strategy.title,
+            description: strategy.description,
+            expectedImpact: strategy.expectedImpact || { metric: 'ROAS', changePercent: 0 },
+            createdAt: strategy.createdAt,
+          }));
         }
       }
 

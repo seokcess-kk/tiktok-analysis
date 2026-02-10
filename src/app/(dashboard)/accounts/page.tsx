@@ -406,7 +406,7 @@ function AccountsContent() {
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">ROAS</p>
-                      <p className="font-semibold">{account.metrics.roas}x</p>
+                      <p className="font-semibold">{Number(account.metrics.roas).toFixed(2)}x</p>
                       <ChangeIndicator value={account.metrics.change.roas} />
                     </div>
                     <div>
