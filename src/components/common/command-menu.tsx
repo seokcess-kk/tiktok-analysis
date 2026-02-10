@@ -103,12 +103,6 @@ export function CommandMenu({ accountId }: CommandMenuProps) {
           shortcut: 'D',
         },
         {
-          icon: Target,
-          label: '캠페인',
-          href: `/accounts/${accountId}/campaigns`,
-          shortcut: 'C',
-        },
-        {
           icon: Image,
           label: '크리에이티브',
           href: `/accounts/${accountId}/creatives`,
@@ -121,6 +115,12 @@ export function CommandMenu({ accountId }: CommandMenuProps) {
           shortcut: 'I',
         },
         {
+          icon: Target,
+          label: '전략',
+          href: `/accounts/${accountId}/strategies`,
+          shortcut: 'T',
+        },
+        {
           icon: FileText,
           label: '리포트',
           href: `/accounts/${accountId}/reports`,
@@ -129,7 +129,7 @@ export function CommandMenu({ accountId }: CommandMenuProps) {
         {
           icon: Settings,
           label: '설정',
-          href: `/accounts/${accountId}/settings`,
+          href: '/settings',
           shortcut: 'S',
         },
       ]
@@ -139,12 +139,6 @@ export function CommandMenu({ accountId }: CommandMenuProps) {
           label: '계정 목록',
           href: '/accounts',
           shortcut: 'A',
-        },
-        {
-          icon: Users,
-          label: '클라이언트',
-          href: '/clients',
-          shortcut: 'L',
         },
         {
           icon: Settings,

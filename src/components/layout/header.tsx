@@ -1,6 +1,7 @@
 'use client';
 
 import { useSession, signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,8 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Bell, User, LogOut, Settings } from 'lucide-react';
+import { User, LogOut, Settings } from 'lucide-react';
 import { MobileSidebar } from './mobile-sidebar';
+import { NotificationBell } from './notification-bell';
 import { CommandMenu } from '@/components/common/command-menu';
 
 interface HeaderProps {
@@ -21,6 +23,7 @@ interface HeaderProps {
 
 export function Header({ title, accountId }: HeaderProps) {
   const { data: session } = useSession();
+  const router = useRouter();
 
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 md:px-6">
@@ -36,12 +39,7 @@ export function Header({ title, accountId }: HeaderProps) {
         <CommandMenu accountId={accountId} />
 
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full bg-destructive text-[10px] font-medium text-destructive-foreground flex items-center justify-center">
-            3
-          </span>
-        </Button>
+        <NotificationBell userId={session?.user?.id} />
 
         {/* User Menu */}
         <DropdownMenu>
@@ -58,7 +56,7 @@ export function Header({ title, accountId }: HeaderProps) {
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>내 계정</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/settings')}>
               <Settings className="mr-2 h-4 w-4" />
               설정
             </DropdownMenuItem>

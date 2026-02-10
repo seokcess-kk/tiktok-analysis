@@ -32,11 +32,12 @@
     }
   ],
   "currentPDCA": {
-    "feature": "accounts-display-fix",
-    "phase": "do",
-    "startedAt": "2026-02-11T16:00:00.000Z",
-    "previousFeature": "dashboard-ux-improvement",
-    "matchRate": 0,
+    "feature": "hidden-features-fix",
+    "phase": "completed",
+    "startedAt": "2026-02-11T16:30:00.000Z",
+    "completedAt": "2026-02-11T17:30:00.000Z",
+    "previousFeature": "accounts-display-fix",
+    "matchRate": 100,
     "iterationCount": 0
   }
 }

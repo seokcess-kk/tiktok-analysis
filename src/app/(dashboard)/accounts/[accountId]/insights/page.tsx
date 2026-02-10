@@ -315,6 +315,31 @@ export default function InsightsPage() {
     ? insights.find((i) => i.id === selectedInsight)
     : null;
 
+  // Mark insight as read handler
+  const handleMarkAsRead = async (insightId: string) => {
+    try {
+      const response = await fetch(`/api/ai/insights/${accountId}/${insightId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isRead: true }),
+      });
+
+      if (response.ok) {
+        setInsights((prev) =>
+          prev.map((i) => (i.id === insightId ? { ...i, isRead: true } : i))
+        );
+      }
+    } catch (error) {
+      console.error('Failed to mark insight as read:', error);
+    }
+  };
+
+  // Dismiss anomaly handler
+  const handleDismissAnomaly = async (index: number) => {
+    // Remove from local state (anomalies are transient)
+    setAnomalies((prev) => prev.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Error Banner */}
@@ -472,9 +497,7 @@ export default function InsightsPage() {
           <InsightList
             insights={filteredInsights}
             onInsightClick={setSelectedInsight}
-            onMarkRead={(id) => {
-              console.log('Mark as read:', id);
-            }}
+            onMarkRead={handleMarkAsRead}
             emptyMessage="조건에 맞는 인사이트가 없습니다"
           />
         </div>
@@ -500,7 +523,7 @@ export default function InsightsPage() {
                   key={i}
                   {...anomaly}
                   onViewDetails={() => setFilterType('ANOMALY')}
-                  onDismiss={() => console.log('Dismiss:', i)}
+                  onDismiss={() => handleDismissAnomaly(i)}
                 />
               ))}
             </div>
