@@ -1,51 +1,35 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Building2, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { formatCurrency, formatPercent } from '@/lib/utils';
+import { Plus, Building2, TrendingUp, TrendingDown, Minus, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { formatCurrency } from '@/lib/utils';
 
-// Mock data - 실제로는 API에서 가져옴
-const mockAccounts = [
-  {
-    id: 'acc_1',
-    name: '브랜드 A',
-    client: { name: '클라이언트 A', industry: '이커머스' },
-    status: 'ACTIVE',
-    metrics: {
-      spend: 15000000,
-      roas: 3.2,
-      cpa: 12000,
-      change: { spend: 5.2, roas: -2.1, cpa: 3.5 },
+interface Account {
+  id: string;
+  name: string;
+  tiktokAdvId: string;
+  status: string;
+  client: { name: string; industry: string | null };
+  _count: { campaigns: number; insights: number };
+}
+
+// Mock metrics for now - will be replaced with real data sync
+function getMockMetrics() {
+  return {
+    spend: Math.floor(Math.random() * 20000000) + 5000000,
+    roas: Math.round((Math.random() * 3 + 1.5) * 10) / 10,
+    cpa: Math.floor(Math.random() * 15000) + 5000,
+    change: {
+      spend: Math.round((Math.random() * 20 - 10) * 10) / 10,
+      roas: Math.round((Math.random() * 10 - 5) * 10) / 10,
+      cpa: Math.round((Math.random() * 10 - 5) * 10) / 10,
     },
-    insights: { critical: 1, warning: 3 },
-  },
-  {
-    id: 'acc_2',
-    name: '브랜드 B',
-    client: { name: '클라이언트 B', industry: '게임' },
-    status: 'ACTIVE',
-    metrics: {
-      spend: 8500000,
-      roas: 2.8,
-      cpa: 8500,
-      change: { spend: -3.1, roas: 5.2, cpa: -8.2 },
-    },
-    insights: { critical: 0, warning: 2 },
-  },
-  {
-    id: 'acc_3',
-    name: '브랜드 C',
-    client: { name: '클라이언트 C', industry: '금융' },
-    status: 'ACTIVE',
-    metrics: {
-      spend: 22000000,
-      roas: 4.1,
-      cpa: 15000,
-      change: { spend: 12.5, roas: 1.8, cpa: 2.1 },
-    },
-    insights: { critical: 0, warning: 1 },
-  },
-];
+  };
+}
 
 function ChangeIndicator({ value }: { value: number }) {
   if (value > 0) {
@@ -72,9 +56,84 @@ function ChangeIndicator({ value }: { value: number }) {
   );
 }
 
+function StatusMessage({ searchParams }: { searchParams: URLSearchParams }) {
+  const success = searchParams.get('success');
+  const error = searchParams.get('error');
+  const count = searchParams.get('count');
+
+  if (success) {
+    return (
+      <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800">
+        <CheckCircle className="h-5 w-5" />
+        <span>TikTok 계정 {count || 1}개가 연동되었습니다!</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    const errorMessages: Record<string, string> = {
+      oauth_config_error: 'TikTok OAuth 설정 오류입니다.',
+      no_auth_code: '인증 코드를 받지 못했습니다.',
+      state_mismatch: '보안 검증에 실패했습니다.',
+      no_advertiser: '연결된 광고 계정이 없습니다.',
+    };
+    return (
+      <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800">
+        <AlertCircle className="h-5 w-5" />
+        <span>{errorMessages[error] || `오류: ${error}`}</span>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default function AccountsPage() {
+  const searchParams = useSearchParams();
+  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
+
+  useEffect(() => {
+    fetchAccounts();
+  }, []);
+
+  async function fetchAccounts() {
+    try {
+      const res = await fetch('/api/accounts');
+      const data = await res.json();
+      if (data.success) {
+        setAccounts(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch accounts:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleConnect() {
+    setConnecting(true);
+    window.location.href = '/api/auth/tiktok';
+  }
+
+  // Generate mock metrics for each account (temporary until data sync is implemented)
+  const accountsWithMetrics = accounts.map((account) => ({
+    ...account,
+    metrics: getMockMetrics(),
+  }));
+
+  const totalSpend = accountsWithMetrics.reduce((sum, a) => sum + a.metrics.spend, 0);
+  const avgRoas = accountsWithMetrics.length > 0
+    ? accountsWithMetrics.reduce((sum, a) => sum + a.metrics.roas, 0) / accountsWithMetrics.length
+    : 0;
+  const criticalCount = accountsWithMetrics.reduce((sum, a) => sum + a._count.insights, 0);
+
   return (
     <div className="space-y-6">
+      {/* Status Message */}
+      <StatusMessage searchParams={searchParams} />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -83,9 +142,13 @@ export default function AccountsPage() {
             연동된 TikTok Ads 계정을 관리하고 성과를 확인하세요
           </p>
         </div>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          계정 연동
+        <Button onClick={handleConnect} disabled={connecting}>
+          {connecting ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Plus className="h-4 w-4 mr-2" />
+          )}
+          {connecting ? '연결 중...' : '계정 연동'}
         </Button>
       </div>
 
@@ -94,16 +157,14 @@ export default function AccountsPage() {
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>총 계정</CardDescription>
-            <CardTitle className="text-3xl">{mockAccounts.length}</CardTitle>
+            <CardTitle className="text-3xl">{accounts.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>총 지출 (7일)</CardDescription>
             <CardTitle className="text-3xl">
-              {formatCurrency(
-                mockAccounts.reduce((sum, a) => sum + a.metrics.spend, 0)
-              )}
+              {formatCurrency(totalSpend)}
             </CardTitle>
           </CardHeader>
         </Card>
@@ -111,75 +172,102 @@ export default function AccountsPage() {
           <CardHeader className="pb-2">
             <CardDescription>평균 ROAS</CardDescription>
             <CardTitle className="text-3xl">
-              {(
-                mockAccounts.reduce((sum, a) => sum + a.metrics.roas, 0) /
-                mockAccounts.length
-              ).toFixed(1)}
+              {avgRoas.toFixed(1)}
             </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>주의 필요</CardDescription>
+            <CardDescription>읽지 않은 인사이트</CardDescription>
             <CardTitle className="text-3xl text-destructive">
-              {mockAccounts.reduce((sum, a) => sum + a.insights.critical, 0)}
+              {criticalCount}
             </CardTitle>
           </CardHeader>
         </Card>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!loading && accounts.length === 0 && (
+        <Card className="p-12">
+          <div className="text-center space-y-4">
+            <Building2 className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h3 className="text-lg font-semibold">연결된 계정이 없습니다</h3>
+            <p className="text-muted-foreground">
+              TikTok Ads 계정을 연동하여 광고 성과를 분석하세요
+            </p>
+            <Button onClick={handleConnect} disabled={connecting}>
+              {connecting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
+              TikTok 계정 연동하기
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Account List */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {mockAccounts.map((account) => (
-          <Link key={account.id} href={`/accounts/${account.id}`}>
-            <Card className="hover:border-primary/50 transition-colors cursor-pointer">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                      <Building2 className="h-5 w-5" />
+      {!loading && accounts.length > 0 && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {accountsWithMetrics.map((account) => (
+            <Link key={account.id} href={`/accounts/${account.id}`}>
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
+                        <Building2 className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">{account.name}</CardTitle>
+                        <CardDescription>
+                          {account.client.name} · {account.client.industry || '미분류'}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    {account._count.insights > 0 && (
+                      <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
+                        {account._count.insights} 인사이트
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground">지출</p>
+                      <p className="font-semibold">
+                        {formatCurrency(account.metrics.spend)}
+                      </p>
+                      <ChangeIndicator value={account.metrics.change.spend} />
                     </div>
                     <div>
-                      <CardTitle className="text-lg">{account.name}</CardTitle>
-                      <CardDescription>
-                        {account.client.name} · {account.client.industry}
-                      </CardDescription>
+                      <p className="text-sm text-muted-foreground">ROAS</p>
+                      <p className="font-semibold">{account.metrics.roas}x</p>
+                      <ChangeIndicator value={account.metrics.change.roas} />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">CPA</p>
+                      <p className="font-semibold">
+                        {formatCurrency(account.metrics.cpa)}
+                      </p>
+                      <ChangeIndicator value={-account.metrics.change.cpa} />
                     </div>
                   </div>
-                  {account.insights.critical > 0 && (
-                    <span className="px-2 py-1 rounded-full bg-destructive/10 text-destructive text-xs font-medium">
-                      {account.insights.critical} 긴급
-                    </span>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">지출</p>
-                    <p className="font-semibold">
-                      {formatCurrency(account.metrics.spend)}
-                    </p>
-                    <ChangeIndicator value={account.metrics.change.spend} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">ROAS</p>
-                    <p className="font-semibold">{account.metrics.roas}x</p>
-                    <ChangeIndicator value={account.metrics.change.roas} />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">CPA</p>
-                    <p className="font-semibold">
-                      {formatCurrency(account.metrics.cpa)}
-                    </p>
-                    <ChangeIndicator value={-account.metrics.change.cpa} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+                </CardContent>
+              </Card>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
