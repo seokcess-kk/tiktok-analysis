@@ -1,12 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { InsightCard, InsightList } from '@/components/ai/insight-card';
 import { AnomalyAlert, AnomalyBanner, AnomalySummary } from '@/components/ai/anomaly-alert';
 import { cn } from '@/lib/utils';
 
-// Mock data
+// Fallback mock data
 const mockInsights = [
   {
     id: '1',
@@ -199,24 +199,109 @@ export default function InsightsPage() {
   const [filterSeverity, setFilterSeverity] = useState<FilterSeverity>('ALL');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
+  const [insights, setInsights] = useState<any[]>(mockInsights);
+  const [anomalies, setAnomalies] = useState<any[]>(mockAnomalies);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Filter insights
-  const filteredInsights = mockInsights.filter((insight) => {
+  // Fetch insights from API
+  useEffect(() => {
+    const fetchInsights = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (filterType !== 'ALL') params.append('type', filterType);
+        if (filterSeverity !== 'ALL') params.append('severity', filterSeverity);
+        if (showUnreadOnly) params.append('isRead', 'false');
+
+        const response = await fetch(`/api/ai/insights/${accountId}?${params.toString()}`);
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          // Map API data to component format
+          const mappedInsights = (result.data.insights || []).map((insight: any) => ({
+            id: insight.id,
+            type: insight.type,
+            severity: insight.severity,
+            title: insight.title,
+            summary: insight.summary,
+            keyFindings: insight.details?.keyFindings || [],
+            recommendations: insight.details?.recommendations || [],
+            generatedAt: insight.generatedAt,
+            isRead: insight.isRead,
+            linkedStrategiesCount: insight.linkedStrategies?.length || 0,
+          }));
+
+          setInsights(mappedInsights.length > 0 ? mappedInsights : mockInsights);
+
+          // Extract anomalies from insights
+          const anomalyInsights = mappedInsights.filter((i: any) => i.type === 'ANOMALY');
+          if (anomalyInsights.length > 0) {
+            const mappedAnomalies = anomalyInsights.slice(0, 2).map((insight: any) => ({
+              type: insight.metrics?.type || 'CPA_SPIKE',
+              severity: insight.severity,
+              metric: insight.metrics?.metric || 'CPA',
+              currentValue: insight.metrics?.currentValue || 0,
+              previousValue: insight.metrics?.previousValue || 0,
+              changePercent: insight.metrics?.changePercent || 0,
+            }));
+            setAnomalies(mappedAnomalies);
+          }
+        } else {
+          console.warn('API returned unsuccessful response, using mock data');
+          setInsights(mockInsights);
+        }
+      } catch (err) {
+        console.error('Failed to fetch insights:', err);
+        setError('데이터를 불러오는데 실패했습니다. Mock 데이터를 표시합니다.');
+        setInsights(mockInsights);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchInsights();
+  }, [accountId, filterType, filterSeverity, showUnreadOnly]);
+
+  // Filter insights (client-side filtering for immediate feedback)
+  const filteredInsights = insights.filter((insight) => {
     if (filterType !== 'ALL' && insight.type !== filterType) return false;
     if (filterSeverity !== 'ALL' && insight.severity !== filterSeverity) return false;
     if (showUnreadOnly && insight.isRead) return false;
     return true;
   });
 
-  const unreadCount = mockInsights.filter((i) => !i.isRead).length;
-  const criticalCount = mockInsights.filter((i) => i.severity === 'CRITICAL' && !i.isRead).length;
+  const unreadCount = insights.filter((i) => !i.isRead).length;
+  const criticalCount = insights.filter((i) => i.severity === 'CRITICAL' && !i.isRead).length;
 
   const selectedInsightData = selectedInsight
-    ? mockInsights.find((i) => i.id === selectedInsight)
+    ? insights.find((i) => i.id === selectedInsight)
     : null;
 
   return (
     <div className="p-6 space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+          {error}
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -239,10 +324,10 @@ export default function InsightsPage() {
       </div>
 
       {/* Anomaly Banner */}
-      {mockAnomalies.length > 0 && (
+      {anomalies.length > 0 && (
         <AnomalyBanner
-          anomalyCount={mockAnomalies.length}
-          criticalCount={mockAnomalies.filter((a) => a.severity === 'CRITICAL').length}
+          anomalyCount={anomalies.length}
+          criticalCount={anomalies.filter((a) => a.severity === 'CRITICAL').length}
           onClick={() => setFilterType('ANOMALY')}
         />
       )}
@@ -251,7 +336,7 @@ export default function InsightsPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">전체 인사이트</p>
-          <p className="text-2xl font-bold text-gray-900">{mockInsights.length}</p>
+          <p className="text-2xl font-bold text-gray-900">{insights.length}</p>
           <p className="text-xs text-gray-400 mt-1">최근 7일</p>
         </div>
         <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -267,7 +352,7 @@ export default function InsightsPage() {
         <div className="bg-white rounded-lg border border-gray-200 p-4">
           <p className="text-sm text-gray-500">연결된 전략</p>
           <p className="text-2xl font-bold text-green-600">
-            {mockInsights.reduce((sum, i) => sum + (i.linkedStrategiesCount || 0), 0)}
+            {insights.reduce((sum, i) => sum + (i.linkedStrategiesCount || 0), 0)}
           </p>
           <p className="text-xs text-gray-400 mt-1">실행 가능한 조치</p>
         </div>
@@ -365,7 +450,7 @@ export default function InsightsPage() {
         <div className="lg:col-span-1 space-y-4">
           {/* Anomaly Summary */}
           <AnomalySummary
-            anomalies={mockAnomalies.map((a) => ({
+            anomalies={anomalies.map((a) => ({
               type: a.type,
               severity: a.severity,
               metric: a.metric,
@@ -374,10 +459,10 @@ export default function InsightsPage() {
           />
 
           {/* Current Anomalies */}
-          {mockAnomalies.length > 0 && (
+          {anomalies.length > 0 && (
             <div className="space-y-3">
               <h3 className="text-sm font-semibold text-gray-900">현재 이상 징후</h3>
-              {mockAnomalies.map((anomaly, i) => (
+              {anomalies.map((anomaly, i) => (
                 <AnomalyAlert
                   key={i}
                   {...anomaly}

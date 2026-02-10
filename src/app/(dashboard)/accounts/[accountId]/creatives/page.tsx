@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { CreativeCard } from '@/components/creatives/creative-card';
 import { CreativeTable } from '@/components/creatives/creative-table';
 import { FatigueChart, FatigueGauge } from '@/components/creatives/fatigue-chart';
 import { ScoreBreakdown, GradeDistribution } from '@/components/creatives/score-breakdown';
 
-// Mock data for demonstration
+// Fallback mock data for demonstration
 const mockCreatives = [
   {
     id: '1',
@@ -199,24 +199,81 @@ export default function CreativesPage() {
   const [sortBy, setSortBy] = useState<SortOption>('score');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedCreative, setSelectedCreative] = useState<string | null>(null);
+  const [creatives, setCreatives] = useState<any[]>(mockCreatives);
+  const [fatigueOverview, setFatigueOverview] = useState(mockFatigueOverview);
+  const [gradeDistribution, setGradeDistribution] = useState(mockGradeDistribution);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Sort creatives
-  const sortedCreatives = [...mockCreatives].sort((a, b) => {
+  // Fetch creatives from API
+  useEffect(() => {
+    const fetchCreatives = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+
+        const response = await fetch(`/api/creatives/${accountId}?sortBy=${sortBy}&sortOrder=${sortOrder}`);
+
+        if (!response.ok) {
+          throw new Error(`API request failed: ${response.status}`);
+        }
+
+        const result = await response.json();
+
+        if (result.success && result.data) {
+          setCreatives(result.data.creatives || mockCreatives);
+
+          // Update summary data if available
+          if (result.data.summary) {
+            setGradeDistribution(result.data.summary.gradeDistribution || mockGradeDistribution);
+
+            // Calculate fatigue overview from creatives
+            const creativesData = result.data.creatives || [];
+            const fatigueData = {
+              healthyCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index < 40).length,
+              warningCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 40 && c.fatigue.index < 70).length,
+              criticalCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 70 && c.fatigue.trend !== 'EXHAUSTED').length,
+              exhaustedCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.trend === 'EXHAUSTED').length,
+              avgLifespan: Math.round(
+                creativesData.reduce((sum: number, c: any) => sum + (c.fatigue?.daysActive || 0), 0) /
+                (creativesData.length || 1)
+              ),
+            };
+            setFatigueOverview(fatigueData);
+          }
+        } else {
+          console.warn('API returned unsuccessful response, using mock data');
+          setCreatives(mockCreatives);
+        }
+      } catch (err) {
+        console.error('Failed to fetch creatives:', err);
+        setError('데이터를 불러오는데 실패했습니다. Mock 데이터를 표시합니다.');
+        setCreatives(mockCreatives);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCreatives();
+  }, [accountId, sortBy, sortOrder]);
+
+  // Sort creatives (already sorted by API, but allow local sorting)
+  const sortedCreatives = [...creatives].sort((a, b) => {
     let aVal: number;
     let bVal: number;
 
     switch (sortBy) {
       case 'spend':
-        aVal = a.metrics.spend;
-        bVal = b.metrics.spend;
+        aVal = a.metrics?.spend || 0;
+        bVal = b.metrics?.spend || 0;
         break;
       case 'ctr':
-        aVal = a.metrics.ctr;
-        bVal = b.metrics.ctr;
+        aVal = a.metrics?.ctr || 0;
+        bVal = b.metrics?.ctr || 0;
         break;
       case 'cvr':
-        aVal = a.metrics.cvr;
-        bVal = b.metrics.cvr;
+        aVal = a.metrics?.cvr || 0;
+        bVal = b.metrics?.cvr || 0;
         break;
       case 'score':
         aVal = a.score?.overall || 0;
@@ -244,11 +301,25 @@ export default function CreativesPage() {
   };
 
   const selectedCreativeData = selectedCreative
-    ? mockCreatives.find((c) => c.id === selectedCreative)
+    ? creatives.find((c) => c.id === selectedCreative)
     : null;
 
   return (
     <div className="p-6 space-y-6">
+      {/* Error Banner */}
+      {error && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800">
+          {error}
+        </div>
+      )}
+
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -305,7 +376,7 @@ export default function CreativesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">전체 소재</p>
-              <p className="text-2xl font-bold text-gray-900">{mockCreatives.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{creatives.length}</p>
             </div>
             <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -315,7 +386,7 @@ export default function CreativesPage() {
           </div>
           <div className="mt-3">
             <p className="text-xs text-gray-500 mb-1">등급 분포</p>
-            <GradeDistribution distribution={mockGradeDistribution} />
+            <GradeDistribution distribution={gradeDistribution} />
           </div>
         </div>
 
@@ -323,7 +394,7 @@ export default function CreativesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">건강한 소재</p>
-              <p className="text-2xl font-bold text-green-600">{mockFatigueOverview.healthyCount}</p>
+              <p className="text-2xl font-bold text-green-600">{fatigueOverview.healthyCount}</p>
             </div>
             <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -338,7 +409,7 @@ export default function CreativesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">주의 필요</p>
-              <p className="text-2xl font-bold text-orange-600">{mockFatigueOverview.warningCount}</p>
+              <p className="text-2xl font-bold text-orange-600">{fatigueOverview.warningCount}</p>
             </div>
             <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -353,7 +424,7 @@ export default function CreativesPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500">교체 필요</p>
-              <p className="text-2xl font-bold text-red-600">{mockFatigueOverview.exhaustedCount}</p>
+              <p className="text-2xl font-bold text-red-600">{fatigueOverview.exhaustedCount}</p>
             </div>
             <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
               <svg className="w-5 h-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
