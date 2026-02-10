@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import { generateReport } from '@/lib/reports/report-generator';
+import type { ReportType } from '@prisma/client';
 
 interface RouteParams {
   params: { accountId: string };
@@ -132,21 +134,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         startDate = periodStart ? new Date(periodStart) : new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
     }
 
-    // 리포트 생성
-    const report = await prisma.report.create({
-      data: {
-        accountId,
-        type: type || 'CUSTOM',
-        title: title || `${account.name} 성과 리포트`,
-        status: 'PENDING',
-        periodStart: startDate,
-        periodEnd: endDate,
-        options: options || {},
-      },
+    // Use new report generator
+    const reportId = await generateReport({
+      accountId,
+      type: (type as ReportType) || 'CUSTOM',
+      periodStart: startDate,
+      periodEnd: endDate,
     });
 
-    // 백그라운드에서 리포트 생성 프로세스 시작 (실제로는 큐에 넣어야 함)
-    generateReportAsync(report.id, account, startDate, endDate);
+    const report = await prisma.report.findUnique({
+      where: { id: reportId },
+    });
 
     return NextResponse.json({
       success: true,

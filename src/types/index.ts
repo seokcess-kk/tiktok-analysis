@@ -43,6 +43,28 @@ export interface TikTokAd {
   creative_type: string;
 }
 
+export interface TikTokCreative {
+  creative_id: string;
+  ad_id?: string;
+  advertiser_id: string;
+  creative_type: 'VIDEO' | 'IMAGE' | 'CAROUSEL';
+  video_id?: string;
+  image_ids?: string[];
+  display_name?: string;
+  landing_page_url?: string;
+  call_to_action?: string;
+  create_time?: string;
+  modify_time?: string;
+  material_list?: Array<{
+    material_id: string;
+    material_url: string;
+    material_type: 'VIDEO' | 'IMAGE';
+    width?: number;
+    height?: number;
+    duration?: number;
+  }>;
+}
+
 export interface TikTokMetrics {
   date: string;
   spend: number;

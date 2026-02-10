@@ -13,6 +13,9 @@ export async function GET(
     const days = Math.min(parseInt(searchParams.get('days') || '7', 10), 30); // 최대 30일
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
+    const level = (searchParams.get('level') || 'ADVERTISER') as 'ADVERTISER' | 'CAMPAIGN' | 'ADGROUP' | 'AD';
+    const campaignId = searchParams.get('campaignId');
+    const adGroupId = searchParams.get('adGroupId');
 
     const account = await prisma.account.findUnique({
       where: { id: params.accountId },
@@ -45,11 +48,11 @@ export async function GET(
     // TikTok API 클라이언트 생성
     const client = createTikTokClient(account.accessToken, account.tiktokAdvId);
 
-    // 성과 데이터 조회
+    // 성과 데이터 조회 (레벨별)
     const metrics = await client.getPerformanceMetrics(
       formatDate(startDate),
       formatDate(endDate),
-      'ADVERTISER'
+      level
     );
 
     // 집계 계산
@@ -68,6 +71,62 @@ export async function GET(
     const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
     const roas = totals.spend > 0 ? (totals.conversions * 50000) / totals.spend : 0; // 가정: 전환당 50,000원
 
+    // Period comparison if requested
+    const comparePeriod = searchParams.get('compare') === 'true';
+    let comparison = null;
+
+    if (comparePeriod) {
+      // Calculate previous period (same duration)
+      const periodDuration = endDate.getTime() - startDate.getTime();
+      const prevEndDate = new Date(startDate.getTime() - 1);
+      const prevStartDate = new Date(prevEndDate.getTime() - periodDuration);
+
+      const prevMetrics = await client.getPerformanceMetrics(
+        formatDate(prevStartDate),
+        formatDate(prevEndDate),
+        level
+      );
+
+      const prevTotals = prevMetrics.reduce(
+        (acc, m) => ({
+          spend: acc.spend + m.spend,
+          impressions: acc.impressions + m.impressions,
+          clicks: acc.clicks + m.clicks,
+          conversions: acc.conversions + m.conversions,
+        }),
+        { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
+      );
+
+      const prevCtr = prevTotals.impressions > 0 ? (prevTotals.clicks / prevTotals.impressions) * 100 : 0;
+      const prevCpc = prevTotals.clicks > 0 ? prevTotals.spend / prevTotals.clicks : 0;
+      const prevCpa = prevTotals.conversions > 0 ? prevTotals.spend / prevTotals.conversions : 0;
+      const prevRoas = prevTotals.spend > 0 ? (prevTotals.conversions * 50000) / prevTotals.spend : 0;
+
+      comparison = {
+        period: {
+          startDate: formatDate(prevStartDate),
+          endDate: formatDate(prevEndDate),
+        },
+        totals: prevTotals,
+        averages: {
+          ctr: prevCtr,
+          cpc: prevCpc,
+          cpa: prevCpa,
+          roas: prevRoas,
+        },
+        changes: {
+          spend: prevTotals.spend > 0 ? ((totals.spend - prevTotals.spend) / prevTotals.spend) * 100 : 0,
+          impressions: prevTotals.impressions > 0 ? ((totals.impressions - prevTotals.impressions) / prevTotals.impressions) * 100 : 0,
+          clicks: prevTotals.clicks > 0 ? ((totals.clicks - prevTotals.clicks) / prevTotals.clicks) * 100 : 0,
+          conversions: prevTotals.conversions > 0 ? ((totals.conversions - prevTotals.conversions) / prevTotals.conversions) * 100 : 0,
+          ctr: prevCtr > 0 ? ((avgCtr - prevCtr) / prevCtr) * 100 : 0,
+          cpc: prevCpc > 0 ? ((avgCpc - prevCpc) / prevCpc) * 100 : 0,
+          cpa: prevCpa > 0 ? ((avgCpa - prevCpa) / prevCpa) * 100 : 0,
+          roas: prevRoas > 0 ? ((roas - prevRoas) / prevRoas) * 100 : 0,
+        },
+      };
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -85,6 +144,7 @@ export async function GET(
           roas: roas,
         },
         daily: metrics,
+        comparison,
       },
     });
   } catch (error) {

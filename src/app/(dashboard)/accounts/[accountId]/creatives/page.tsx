@@ -205,6 +205,21 @@ export default function CreativesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync creatives on initial load if needed
+  const syncCreatives = async () => {
+    try {
+      const syncResponse = await fetch(`/api/accounts/${accountId}/sync-creatives`, {
+        method: 'POST',
+      });
+
+      if (!syncResponse.ok) {
+        console.warn('Creative sync failed, but will try to fetch existing data');
+      }
+    } catch (err) {
+      console.warn('Creative sync error:', err);
+    }
+  };
+
   // Fetch creatives from API
   useEffect(() => {
     const fetchCreatives = async () => {
@@ -221,7 +236,49 @@ export default function CreativesPage() {
         const result = await response.json();
 
         if (result.success && result.data) {
-          setCreatives(result.data.creatives || mockCreatives);
+          const hasRealData = result.data.creatives && result.data.creatives.length > 0;
+
+          if (!hasRealData) {
+            // No creatives found, try syncing from TikTok
+            setError('소재 데이터가 없습니다. TikTok에서 동기화를 시도합니다...');
+            await syncCreatives();
+
+            // Retry fetch after sync
+            const retryResponse = await fetch(`/api/creatives/${accountId}?sortBy=${sortBy}&sortOrder=${sortOrder}`);
+            if (retryResponse.ok) {
+              const retryResult = await retryResponse.json();
+              if (retryResult.success && retryResult.data?.creatives?.length > 0) {
+                setCreatives(retryResult.data.creatives);
+                setError(null);
+              } else {
+                setCreatives(mockCreatives);
+                setError('동기화 후에도 데이터가 없습니다. Mock 데이터를 표시합니다.');
+              }
+            } else {
+              setCreatives(mockCreatives);
+              setError('동기화 실패. Mock 데이터를 표시합니다.');
+            }
+          } else {
+            setCreatives(result.data.creatives);
+
+          // Update summary data if available
+          if (result.data.summary) {
+            setGradeDistribution(result.data.summary.gradeDistribution || mockGradeDistribution);
+
+            // Calculate fatigue overview from creatives
+            const creativesData = result.data.creatives || [];
+            const fatigueData = {
+              healthyCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index < 40).length,
+              warningCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 40 && c.fatigue.index < 70).length,
+              criticalCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.index >= 70 && c.fatigue.trend !== 'EXHAUSTED').length,
+              exhaustedCount: creativesData.filter((c: any) => c.fatigue && c.fatigue.trend === 'EXHAUSTED').length,
+              avgLifespan: Math.round(
+                creativesData.reduce((sum: number, c: any) => sum + (c.fatigue?.daysActive || 0), 0) /
+                (creativesData.length || 1)
+              ),
+            };
+            setFatigueOverview(fatigueData);
+          }
 
           // Update summary data if available
           if (result.data.summary) {
@@ -242,13 +299,15 @@ export default function CreativesPage() {
             setFatigueOverview(fatigueData);
           }
         } else {
-          console.warn('API returned unsuccessful response, using mock data');
+          console.warn('API returned unsuccessful response');
+          setError('API 응답이 올바르지 않습니다. 동기화를 시도합니다...');
+          await syncCreatives();
           setCreatives(mockCreatives);
         }
       } catch (err) {
         console.error('Failed to fetch creatives:', err);
-        setError('데이터를 불러오는데 실패했습니다. Mock 데이터를 표시합니다.');
-        setCreatives(mockCreatives);
+        setError('데이터를 불러오는데 실패했습니다. "소재 동기화" 버튼을 클릭하세요.');
+        setCreatives([]);
       } finally {
         setIsLoading(false);
       }
@@ -256,6 +315,21 @@ export default function CreativesPage() {
 
     fetchCreatives();
   }, [accountId, sortBy, sortOrder]);
+
+  // Manual sync handler
+  const handleManualSync = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      await syncCreatives();
+      // Reload data after sync
+      window.location.reload();
+    } catch (err) {
+      setError('동기화 실패. 나중에 다시 시도해주세요.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Sort creatives (already sorted by API, but allow local sorting)
   const sortedCreatives = [...creatives].sort((a, b) => {
@@ -327,6 +401,17 @@ export default function CreativesPage() {
           <p className="text-gray-500 mt-1">광고 소재별 성과와 피로도를 분석합니다</p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Sync Button */}
+          <button
+            onClick={handleManualSync}
+            disabled={isLoading}
+            className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            소재 동기화
+          </button>
           {/* Sort Options */}
           <select
             value={sortBy}

@@ -240,7 +240,13 @@ export default function InsightsPage() {
             linkedStrategiesCount: insight.linkedStrategies?.length || 0,
           }));
 
-          setInsights(mappedInsights.length > 0 ? mappedInsights : mockInsights);
+          if (mappedInsights.length > 0) {
+            setInsights(mappedInsights);
+          } else {
+            // No insights yet, but don't fallback to mock immediately
+            setInsights([]);
+            setError('인사이트가 아직 생성되지 않았습니다. "인사이트 새로고침"을 클릭하여 생성하세요.');
+          }
 
           // Extract anomalies from insights
           const anomalyInsights = mappedInsights.filter((i: any) => i.type === 'ANOMALY');
@@ -256,13 +262,14 @@ export default function InsightsPage() {
             setAnomalies(mappedAnomalies);
           }
         } else {
-          console.warn('API returned unsuccessful response, using mock data');
-          setInsights(mockInsights);
+          console.warn('API returned unsuccessful response');
+          setInsights([]);
+          setError('인사이트를 불러올 수 없습니다. 새로고침 버튼을 클릭하세요.');
         }
       } catch (err) {
         console.error('Failed to fetch insights:', err);
-        setError('데이터를 불러오는데 실패했습니다. Mock 데이터를 표시합니다.');
-        setInsights(mockInsights);
+        setError('데이터를 불러오는데 실패했습니다. 네트워크 연결을 확인하세요.');
+        setInsights([]);
       } finally {
         setIsLoading(false);
       }
@@ -270,6 +277,28 @@ export default function InsightsPage() {
 
     fetchInsights();
   }, [accountId, filterType, filterSeverity, showUnreadOnly]);
+
+  // Generate insights handler
+  const handleGenerateInsights = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/ai/insights/${accountId}/generate`, {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate insights');
+      }
+
+      // Reload insights after generation
+      window.location.reload();
+    } catch (err) {
+      setError('인사이트 생성 실패. 나중에 다시 시도해주세요.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Filter insights (client-side filtering for immediate feedback)
   const filteredInsights = insights.filter((insight) => {
@@ -310,7 +339,11 @@ export default function InsightsPage() {
             AI가 분석한 광고 성과 인사이트와 이상 탐지 결과입니다
           </p>
         </div>
-        <button className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2">
+        <button
+          onClick={handleGenerateInsights}
+          disabled={isLoading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+        >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path
               strokeLinecap="round"

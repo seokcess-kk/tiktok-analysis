@@ -3,6 +3,7 @@ import type {
   TikTokCampaign,
   TikTokAdGroup,
   TikTokAd,
+  TikTokCreative,
   TikTokMetrics,
 } from '@/types';
 
@@ -28,10 +29,32 @@ interface TikTokListResponse<T> {
 export class TikTokClient {
   private accessToken: string;
   private advertiserId: string;
+  private requestQueue: Promise<any> = Promise.resolve();
+  private requestCount = 0;
+  private resetTime = Date.now() + 60000; // Reset every minute
 
   constructor(accessToken: string, advertiserId: string) {
     this.accessToken = accessToken;
     this.advertiserId = advertiserId;
+  }
+
+  private async rateLimit(): Promise<void> {
+    // TikTok API rate limit: 10 requests per second
+    const now = Date.now();
+    if (now > this.resetTime) {
+      this.requestCount = 0;
+      this.resetTime = now + 60000;
+    }
+
+    if (this.requestCount >= 600) {
+      // 600 requests per minute = 10 per second
+      const waitTime = this.resetTime - now;
+      await new Promise((resolve) => setTimeout(resolve, waitTime));
+      this.requestCount = 0;
+      this.resetTime = Date.now() + 60000;
+    }
+
+    this.requestCount++;
   }
 
   private async request<T>(
@@ -39,6 +62,9 @@ export class TikTokClient {
     method: 'GET' | 'POST' = 'GET',
     params?: Record<string, unknown>
   ): Promise<T> {
+    // Apply rate limiting
+    await this.rateLimit();
+
     let url = `${TIKTOK_API_BASE}${endpoint}`;
 
     const headers: HeadersInit = {
@@ -184,6 +210,47 @@ export class TikTokClient {
     }
 
     return this.request<TikTokListResponse<TikTokAd>>(`/ad/get/`, 'GET', body);
+  }
+
+  // ─────────────────────────────────────────
+  // Creatives
+  // ─────────────────────────────────────────
+
+  async getCreatives(
+    adIds?: string[],
+    page = 1,
+    pageSize = 100
+  ): Promise<TikTokListResponse<TikTokCreative>> {
+    const body: Record<string, unknown> = {
+      advertiser_id: this.advertiserId,
+      page,
+      page_size: pageSize,
+    };
+
+    if (adIds && adIds.length > 0) {
+      body.filtering = { ad_ids: adIds };
+    }
+
+    return this.request<TikTokListResponse<TikTokCreative>>(
+      `/creative/get/`,
+      'GET',
+      body
+    );
+  }
+
+  async getAllCreatives(adIds?: string[]): Promise<TikTokCreative[]> {
+    const creatives: TikTokCreative[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await this.getCreatives(adIds, page);
+      creatives.push(...response.list);
+      hasMore = page < response.page_info.total_page;
+      page++;
+    }
+
+    return creatives;
   }
 
   // ─────────────────────────────────────────

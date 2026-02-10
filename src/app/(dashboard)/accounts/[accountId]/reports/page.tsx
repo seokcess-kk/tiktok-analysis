@@ -361,17 +361,30 @@ export default function ReportsPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     {report.status === 'COMPLETED' && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          // 실제로는 파일 다운로드 또는 뷰어 열기
-                          window.open(`/api/reports/${accountId}/${report.id}`, '_blank');
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        보기
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Open PDF download page
+                            window.open(`/api/reports/${accountId}/${report.id}/download?format=html`, '_blank');
+                          }}
+                        >
+                          <Download className="h-4 w-4 mr-1" />
+                          PDF 다운로드
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            // Open report viewer
+                            window.open(`/api/reports/${accountId}/${report.id}`, '_blank');
+                          }}
+                        >
+                          <FileText className="h-4 w-4 mr-1" />
+                          미리보기
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="ghost"
