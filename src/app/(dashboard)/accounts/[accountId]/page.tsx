@@ -160,9 +160,13 @@ export default function DashboardPage() {
       setLoading(true);
       setError(null);
 
+      // dateRange를 days 숫자로 변환
+      const daysMap: Record<string, number> = { '1d': 1, '7d': 7, '14d': 14, '30d': 30 };
+      const days = daysMap[dateRange] || 7;
+
       // 실제 API 호출 시도
       const [metricsRes, insightsRes, strategiesRes] = await Promise.allSettled([
-        fetch(`/api/metrics/${accountId}/summary?period=${dateRange}`),
+        fetch(`/api/accounts/${accountId}/metrics?days=${days}`),
         fetch(`/api/ai/insights/${accountId}?limit=5`),
         fetch(`/api/ai/strategies/${accountId}?status=PENDING&limit=5`),
       ]);
@@ -173,12 +177,22 @@ export default function DashboardPage() {
       if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
         const metricsData = await metricsRes.value.json();
         if (metricsData.success && metricsData.data) {
-          dashboardData.account = metricsData.data.account || dashboardData.account;
+          // API 응답을 대시보드 형식으로 변환
+          const { totals, averages, daily } = metricsData.data;
           dashboardData.kpis = {
-            current: metricsData.data.current || dashboardData.kpis.current,
-            previous: metricsData.data.previous || dashboardData.kpis.previous,
+            current: {
+              spend: totals.spend,
+              impressions: totals.impressions,
+              clicks: totals.clicks,
+              conversions: totals.conversions,
+              ctr: averages.ctr,
+              cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
+              cpa: averages.cpa,
+              roas: averages.roas,
+            },
+            previous: dashboardData.kpis.previous, // 이전 기간 데이터는 추후 구현
           };
-          dashboardData.chartData = metricsData.data.daily || dashboardData.chartData;
+          dashboardData.chartData = daily || dashboardData.chartData;
         }
       }
 
