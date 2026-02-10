@@ -164,35 +164,67 @@ export default function DashboardPage() {
       const daysMap: Record<string, number> = { '1d': 1, '7d': 7, '14d': 14, '30d': 30 };
       const days = daysMap[dateRange] || 7;
 
-      // 실제 API 호출 시도
-      const [metricsRes, insightsRes, strategiesRes] = await Promise.allSettled([
-        fetch(`/api/accounts/${accountId}/metrics?days=${days}`),
+      // 현재 기간과 이전 기간 날짜 계산
+      const currentEndDate = new Date();
+      const currentStartDate = new Date();
+      currentStartDate.setDate(currentStartDate.getDate() - days);
+
+      const previousEndDate = new Date(currentStartDate);
+      previousEndDate.setDate(previousEndDate.getDate() - 1); // 현재 기간 바로 전날
+      const previousStartDate = new Date(previousEndDate);
+      previousStartDate.setDate(previousStartDate.getDate() - days);
+
+      const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+      // 현재 기간 및 이전 기간 메트릭, 인사이트, 전략 데이터 병렬 호출
+      const [
+        currentMetricsRes,
+        previousMetricsRes,
+        insightsRes,
+        strategiesRes
+      ] = await Promise.allSettled([
+        fetch(`/api/accounts/${accountId}/metrics?startDate=${formatDate(currentStartDate)}&endDate=${formatDate(currentEndDate)}`),
+        fetch(`/api/accounts/${accountId}/metrics?startDate=${formatDate(previousStartDate)}&endDate=${formatDate(previousEndDate)}`),
         fetch(`/api/ai/insights/${accountId}?limit=5`),
         fetch(`/api/ai/strategies/${accountId}?status=PENDING&limit=5`),
       ]);
 
       let dashboardData = { ...mockDashboardData };
 
-      // 메트릭 데이터 처리
-      if (metricsRes.status === 'fulfilled' && metricsRes.value.ok) {
-        const metricsData = await metricsRes.value.json();
+      // 현재 기간 메트릭 데이터 처리
+      if (currentMetricsRes.status === 'fulfilled' && currentMetricsRes.value.ok) {
+        const metricsData = await currentMetricsRes.value.json();
         if (metricsData.success && metricsData.data) {
-          // API 응답을 대시보드 형식으로 변환
           const { totals, averages, daily } = metricsData.data;
-          dashboardData.kpis = {
-            current: {
-              spend: totals.spend,
-              impressions: totals.impressions,
-              clicks: totals.clicks,
-              conversions: totals.conversions,
-              ctr: averages.ctr,
-              cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
-              cpa: averages.cpa,
-              roas: averages.roas,
-            },
-            previous: dashboardData.kpis.previous, // 이전 기간 데이터는 추후 구현
+          dashboardData.kpis.current = {
+            spend: totals.spend,
+            impressions: totals.impressions,
+            clicks: totals.clicks,
+            conversions: totals.conversions,
+            ctr: averages.ctr,
+            cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
+            cpa: averages.cpa,
+            roas: averages.roas,
           };
           dashboardData.chartData = daily || dashboardData.chartData;
+        }
+      }
+
+      // 이전 기간 메트릭 데이터 처리
+      if (previousMetricsRes.status === 'fulfilled' && previousMetricsRes.value.ok) {
+        const previousData = await previousMetricsRes.value.json();
+        if (previousData.success && previousData.data) {
+          const { totals, averages } = previousData.data;
+          dashboardData.kpis.previous = {
+            spend: totals.spend,
+            impressions: totals.impressions,
+            clicks: totals.clicks,
+            conversions: totals.conversions,
+            ctr: averages.ctr,
+            cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
+            cpa: averages.cpa,
+            roas: averages.roas,
+          };
         }
       }
 
