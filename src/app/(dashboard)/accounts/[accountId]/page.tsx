@@ -201,12 +201,21 @@ export default function DashboardPage() {
             impressions: totals.impressions,
             clicks: totals.clicks,
             conversions: totals.conversions,
-            ctr: averages.ctr,
-            cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
-            cpa: averages.cpa,
-            roas: averages.roas,
+            ctr: Number(averages.ctr.toFixed(2)),
+            cvr: totals.clicks > 0 ? Number(((totals.conversions / totals.clicks) * 100).toFixed(2)) : 0,
+            cpa: Math.round(averages.cpa),
+            roas: Number(averages.roas.toFixed(2)),
           };
-          dashboardData.chartData = daily || dashboardData.chartData;
+          // 차트 데이터의 소숫점 포맷팅
+          dashboardData.chartData = daily
+            ? daily.map((d: Record<string, unknown>) => ({
+                ...d,
+                ctr: d.ctr ? Number((d.ctr as number).toFixed(2)) : 0,
+                cvr: d.cvr ? Number((d.cvr as number).toFixed(2)) : 0,
+                cpa: d.cpa ? Math.round(d.cpa as number) : 0,
+                roas: d.roas ? Number((d.roas as number).toFixed(2)) : 0,
+              }))
+            : dashboardData.chartData;
         }
       }
 
@@ -220,10 +229,10 @@ export default function DashboardPage() {
             impressions: totals.impressions,
             clicks: totals.clicks,
             conversions: totals.conversions,
-            ctr: averages.ctr,
-            cvr: totals.clicks > 0 ? (totals.conversions / totals.clicks) * 100 : 0,
-            cpa: averages.cpa,
-            roas: averages.roas,
+            ctr: Number(averages.ctr.toFixed(2)),
+            cvr: totals.clicks > 0 ? Number(((totals.conversions / totals.clicks) * 100).toFixed(2)) : 0,
+            cpa: Math.round(averages.cpa),
+            roas: Number(averages.roas.toFixed(2)),
           };
         }
       }
