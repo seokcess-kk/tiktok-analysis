@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,18 +17,11 @@ interface Account {
   _count: { campaigns: number; insights: number };
 }
 
-// Mock metrics for now - will be replaced with real data sync
-function getMockMetrics() {
-  return {
-    spend: Math.floor(Math.random() * 20000000) + 5000000,
-    roas: Math.round((Math.random() * 3 + 1.5) * 10) / 10,
-    cpa: Math.floor(Math.random() * 15000) + 5000,
-    change: {
-      spend: Math.round((Math.random() * 20 - 10) * 10) / 10,
-      roas: Math.round((Math.random() * 10 - 5) * 10) / 10,
-      cpa: Math.round((Math.random() * 10 - 5) * 10) / 10,
-    },
-  };
+interface AccountMetrics {
+  spend: number;
+  roas: number;
+  cpa: number;
+  change: { spend: number; roas: number; cpa: number };
 }
 
 function ChangeIndicator({ value }: { value: number }) {
@@ -88,10 +81,12 @@ function StatusMessage({ searchParams }: { searchParams: URLSearchParams }) {
   return null;
 }
 
-export default function AccountsPage() {
+function AccountsContent() {
   const searchParams = useSearchParams();
   const [accounts, setAccounts] = useState<Account[]>([]);
+  const [metricsMap, setMetricsMap] = useState<Record<string, AccountMetrics>>({});
   const [loading, setLoading] = useState(true);
+  const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
@@ -104,6 +99,8 @@ export default function AccountsPage() {
       const data = await res.json();
       if (data.success) {
         setAccounts(data.data);
+        // 계정 목록을 가져온 후 각 계정의 metrics 조회
+        fetchAllMetrics(data.data);
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error);
@@ -112,15 +109,43 @@ export default function AccountsPage() {
     }
   }
 
+  async function fetchAllMetrics(accountList: Account[]) {
+    setLoadingMetrics(true);
+    const newMetrics: Record<string, AccountMetrics> = {};
+
+    await Promise.all(
+      accountList.map(async (account) => {
+        try {
+          const res = await fetch(`/api/accounts/${account.id}/metrics?days=7`);
+          const data = await res.json();
+          if (data.success) {
+            newMetrics[account.id] = {
+              spend: data.data.totals.spend,
+              roas: data.data.averages.roas,
+              cpa: data.data.averages.cpa,
+              change: { spend: 0, roas: 0, cpa: 0 }, // TODO: 이전 기간 비교
+            };
+          }
+        } catch (error) {
+          console.error(`Failed to fetch metrics for ${account.id}:`, error);
+          // 에러 시 기본값
+          newMetrics[account.id] = { spend: 0, roas: 0, cpa: 0, change: { spend: 0, roas: 0, cpa: 0 } };
+        }
+      })
+    );
+
+    setMetricsMap(newMetrics);
+    setLoadingMetrics(false);
+  }
+
   function handleConnect() {
     setConnecting(true);
     window.location.href = '/api/auth/tiktok';
   }
 
-  // Generate mock metrics for each account (temporary until data sync is implemented)
   const accountsWithMetrics = accounts.map((account) => ({
     ...account,
-    metrics: getMockMetrics(),
+    metrics: metricsMap[account.id] || { spend: 0, roas: 0, cpa: 0, change: { spend: 0, roas: 0, cpa: 0 } },
   }));
 
   const totalSpend = accountsWithMetrics.reduce((sum, a) => sum + a.metrics.spend, 0);
@@ -187,9 +212,12 @@ export default function AccountsPage() {
       </div>
 
       {/* Loading State */}
-      {loading && (
+      {(loading || loadingMetrics) && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">
+            {loading ? '계정 불러오는 중...' : '성과 데이터 불러오는 중...'}
+          </span>
         </div>
       )}
 
@@ -269,5 +297,13 @@ export default function AccountsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AccountsPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-muted-foreground" /></div>}>
+      <AccountsContent />
+    </Suspense>
   );
 }

@@ -37,9 +37,9 @@ export class TikTokClient {
   private async request<T>(
     endpoint: string,
     method: 'GET' | 'POST' = 'GET',
-    body?: Record<string, unknown>
+    params?: Record<string, unknown>
   ): Promise<T> {
-    const url = `${TIKTOK_API_BASE}${endpoint}`;
+    let url = `${TIKTOK_API_BASE}${endpoint}`;
 
     const headers: HeadersInit = {
       'Access-Token': this.accessToken,
@@ -51,8 +51,19 @@ export class TikTokClient {
       headers,
     };
 
-    if (body) {
-      options.body = JSON.stringify(body);
+    if (params) {
+      if (method === 'GET') {
+        // GET 요청 시 쿼리 파라미터로 변환
+        const searchParams = new URLSearchParams();
+        for (const [key, value] of Object.entries(params)) {
+          if (value !== undefined && value !== null) {
+            searchParams.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+          }
+        }
+        url += (endpoint.includes('?') ? '&' : '?') + searchParams.toString();
+      } else {
+        options.body = JSON.stringify(params);
+      }
     }
 
     const response = await fetch(url, options);
@@ -88,7 +99,7 @@ export class TikTokClient {
   async getCampaigns(page = 1, pageSize = 100): Promise<TikTokListResponse<TikTokCampaign>> {
     return this.request<TikTokListResponse<TikTokCampaign>>(
       `/campaign/get/`,
-      'POST',
+      'GET',
       {
         advertiser_id: this.advertiserId,
         page,
@@ -133,7 +144,7 @@ export class TikTokClient {
 
     return this.request<TikTokListResponse<TikTokAdGroup>>(
       `/adgroup/get/`,
-      'POST',
+      'GET',
       body
     );
   }
@@ -172,7 +183,7 @@ export class TikTokClient {
       body.filtering = { adgroup_ids: adGroupIds };
     }
 
-    return this.request<TikTokListResponse<TikTokAd>>(`/ad/get/`, 'POST', body);
+    return this.request<TikTokListResponse<TikTokAd>>(`/ad/get/`, 'GET', body);
   }
 
   // ─────────────────────────────────────────
@@ -191,7 +202,7 @@ export class TikTokClient {
   }): Promise<{ list: Record<string, unknown>[] }> {
     return this.request<{ list: Record<string, unknown>[] }>(
       `/report/integrated/get/`,
-      'POST',
+      'GET',
       {
         advertiser_id: this.advertiserId,
         report_type: params.reportType,

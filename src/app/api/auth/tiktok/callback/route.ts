@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { exchangeCodeForToken } from '@/lib/tiktok/auth';
 import prisma from '@/lib/db/prisma';
+import { Account } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 각 광고주 계정 등록
-    const createdAccounts = [];
+    const createdAccounts: Account[] = [];
 
     for (const advertiserId of advertiser_ids) {
       // 이미 등록된 계정인지 확인

@@ -14,12 +14,13 @@ export interface TikTokCampaign {
   campaign_id: string;
   campaign_name: string;
   advertiser_id: string;
-  objective_type: string;
-  budget: number;
-  budget_mode: string;
-  status: string;
-  create_time: string;
-  modify_time: string;
+  objective_type?: string;
+  budget?: number;
+  budget_mode?: string;
+  status?: string;
+  operation_status?: string;
+  create_time?: string;
+  modify_time?: string;
 }
 
 export interface TikTokAdGroup {

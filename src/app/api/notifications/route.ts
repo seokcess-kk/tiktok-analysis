@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/notifications
  * 현재 사용자의 알림 목록 조회
