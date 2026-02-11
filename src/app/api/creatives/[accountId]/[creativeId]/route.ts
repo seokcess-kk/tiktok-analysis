@@ -8,7 +8,7 @@ import {
 } from '@/lib/analytics';
 
 interface RouteParams {
-  params: { accountId: string; creativeId: string };
+  params: Promise<{ accountId: string; creativeId: string }>;
 }
 
 /**
@@ -17,7 +17,7 @@ interface RouteParams {
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const { accountId, creativeId } = params;
+    const { accountId, creativeId } = await params;
     const { searchParams } = new URL(request.url);
 
     const days = parseInt(searchParams.get('days') || '30', 10);

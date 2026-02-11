@@ -6,3 +6,5 @@
 export * from './insight-generator';
 export * from './anomaly-detector';
 export * from './strategy-advisor';
+export * from './creative-insight-generator';
+export * from './creative-strategy-advisor';

@@ -167,9 +167,11 @@ model Creative {
   tags      Json?  // ["인물", "제품", "텍스트오버레이"]
   hookScore Float? // 첫 3초 효과 점수 (0-100)
 
-  ads     Ad[]
-  metrics PerformanceMetric[]
-  fatigue CreativeFatigue[]
+  ads        Ad[]
+  metrics    PerformanceMetric[]
+  fatigue    CreativeFatigue[]
+  insights   AIInsight[]   // 소재별 인사이트
+  strategies AIStrategy[]  // 소재별 전략
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -268,6 +270,8 @@ model AIInsight {
   id        String      @id @default(cuid())
   accountId String
   account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  creativeId String?    // 소재별 인사이트용
+  creative   Creative?  @relation(fields: [creativeId], references: [id], onDelete: Cascade)
   type      InsightType
   severity  Severity
   title     String
@@ -284,6 +288,7 @@ model AIInsight {
 
   @@index([accountId, generatedAt])
   @@index([accountId, type])
+  @@index([creativeId])
 }
 
 enum InsightType {
@@ -306,6 +311,8 @@ model AIStrategy {
   account   Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
   insightId String?
   insight   AIInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
+  creativeId String?   // 소재별 전략용
+  creative   Creative? @relation(fields: [creativeId], references: [id], onDelete: Cascade)
 
   type        StrategyType
   priority    Priority
@@ -329,6 +336,7 @@ model AIStrategy {
 
   @@index([accountId, status])
   @@index([accountId, createdAt])
+  @@index([creativeId])
 }
 
 enum StrategyType {

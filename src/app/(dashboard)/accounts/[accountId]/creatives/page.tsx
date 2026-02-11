@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { CreativeCard } from '@/components/creatives/creative-card';
 import { CreativeTable } from '@/components/creatives/creative-table';
 import { FatigueChart, FatigueGauge } from '@/components/creatives/fatigue-chart';
@@ -193,6 +193,7 @@ type SortOption = 'spend' | 'ctr' | 'cvr' | 'score' | 'fatigueIndex';
 
 export default function CreativesPage() {
   const params = useParams();
+  const router = useRouter();
   const accountId = params.accountId as string;
 
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
@@ -541,6 +542,17 @@ export default function CreativesPage() {
         <div className="lg:col-span-1">
           {selectedCreativeData ? (
             <div className="space-y-4 sticky top-4">
+              {/* Detail Page Link */}
+              <button
+                onClick={() => router.push(`/accounts/${accountId}/creatives/${selectedCreativeData.id}`)}
+                className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                인사이트 및 전략 보기
+              </button>
+
               {/* Score Breakdown */}
               {selectedCreativeData.score && (
                 <ScoreBreakdown
