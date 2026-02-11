@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -63,12 +64,25 @@ interface SidebarProps {
 
 export function Sidebar({ accountId }: SidebarProps) {
   const pathname = usePathname();
+  const [currentAccountId, setCurrentAccountId] = useState<string | null>(accountId || null);
 
-  // URL에서 accountId 추출 (/accounts/xxx/... 형태)
-  const extractedAccountId = accountId || pathname.match(/\/accounts\/([^\/]+)/)?.[1];
+  // 클라이언트에서 pathname이 변경될 때마다 accountId 추출
+  useEffect(() => {
+    if (accountId) {
+      setCurrentAccountId(accountId);
+      return;
+    }
 
-  const navItems = extractedAccountId
-    ? getAccountNavItems(extractedAccountId)
+    const match = pathname.match(/\/accounts\/([^\/]+)/);
+    if (match && match[1]) {
+      setCurrentAccountId(match[1]);
+    } else {
+      setCurrentAccountId(null);
+    }
+  }, [pathname, accountId]);
+
+  const navItems = currentAccountId
+    ? getAccountNavItems(currentAccountId)
     : mainNavItems;
 
   return (
