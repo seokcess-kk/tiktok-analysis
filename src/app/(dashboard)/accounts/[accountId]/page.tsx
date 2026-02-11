@@ -22,6 +22,7 @@ import { DateRangePicker } from '@/components/filters';
 import { useDateRangeUrlState, useUrlState } from '@/hooks';
 import { DashboardSkeleton } from '@/components/common';
 import { Label } from '@/components/ui/label';
+import { SetupGuide } from '@/components/onboarding/setup-guide';
 import type { DateRange } from 'react-day-picker';
 
 interface DashboardData {
@@ -157,6 +158,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartMetrics, setChartMetrics] = useState(['spend', 'conversions']);
+  const [campaignCount, setCampaignCount] = useState(0);
 
   // URL 기반 날짜 범위 상태
   const [dateRange, setDateRange] = useDateRangeUrlState();
@@ -194,17 +196,19 @@ export default function DashboardPage() {
 
       const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
-      // 현재 기간 및 이전 기간 메트릭, 인사이트, 전략 데이터 병렬 호출
+      // 현재 기간 및 이전 기간 메트릭, 인사이트, 전략, 캠페인 데이터 병렬 호출
       const [
         currentMetricsRes,
         previousMetricsRes,
         insightsRes,
-        strategiesRes
+        strategiesRes,
+        campaignsRes
       ] = await Promise.allSettled([
         fetch(`/api/accounts/${accountId}/metrics?startDate=${formatDate(currentStartDate)}&endDate=${formatDate(currentEndDate)}`),
         fetch(`/api/accounts/${accountId}/metrics?startDate=${formatDate(previousStartDate)}&endDate=${formatDate(previousEndDate)}`),
         fetch(`/api/ai/insights/${accountId}?limit=5`),
         fetch(`/api/ai/strategies/${accountId}?status=PENDING&limit=5`),
+        fetch(`/api/accounts/${accountId}/campaigns?limit=1`), // 캠페인 수만 확인
       ]);
 
       let dashboardData = { ...mockDashboardData };
@@ -297,6 +301,14 @@ export default function DashboardPage() {
         }
       }
 
+      // 캠페인 수 처리
+      if (campaignsRes.status === 'fulfilled' && campaignsRes.value.ok) {
+        const campaignsData = await campaignsRes.value.json();
+        if (campaignsData.success && campaignsData.pagination) {
+          setCampaignCount(campaignsData.pagination.total);
+        }
+      }
+
       setData(dashboardData);
     } catch (err) {
       console.error('Dashboard fetch error:', err);
@@ -304,6 +316,21 @@ export default function DashboardPage() {
       setData(mockDashboardData);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 인사이트 생성 핸들러
+  const handleGenerateInsights = async () => {
+    try {
+      const res = await fetch(`/api/seed/insights?accountId=${accountId}&count=5`, {
+        method: 'POST',
+      });
+      if (res.ok) {
+        // 데이터 새로고침
+        fetchDashboardData();
+      }
+    } catch (err) {
+      console.error('Failed to generate insights:', err);
     }
   };
 
@@ -466,6 +493,15 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Setup Guide - 온보딩 안내 */}
+      <SetupGuide
+        accountId={accountId}
+        campaignCount={campaignCount}
+        insightCount={data?.insights?.length || 0}
+        strategyCount={data?.strategies?.length || 0}
+        onGenerateInsights={handleGenerateInsights}
+      />
 
       {/* KPI Grid */}
       <KpiGrid kpis={kpiData} />

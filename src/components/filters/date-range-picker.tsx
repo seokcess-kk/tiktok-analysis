@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { format, subDays, startOfMonth, endOfMonth, subMonths, startOfDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
 import { DateRange } from 'react-day-picker';
@@ -60,18 +60,26 @@ const presets = [
   },
   {
     label: '이번 달',
-    getValue: () => ({
-      from: startOfMonth(new Date()),
-      to: new Date(),
-    }),
+    getValue: () => {
+      // 로컬 타임존 기준으로 이번 달 1일 계산
+      const now = new Date();
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      return {
+        from: startOfDay(firstDay),
+        to: startOfDay(now),
+      };
+    },
   },
   {
     label: '지난 달',
     getValue: () => {
-      const lastMonth = subMonths(new Date(), 1);
+      // 로컬 타임존 기준으로 지난 달 계산
+      const now = new Date();
+      const lastMonthFirstDay = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const lastMonthLastDay = new Date(now.getFullYear(), now.getMonth(), 0);
       return {
-        from: startOfMonth(lastMonth),
-        to: endOfMonth(lastMonth),
+        from: startOfDay(lastMonthFirstDay),
+        to: startOfDay(lastMonthLastDay),
       };
     },
   },
