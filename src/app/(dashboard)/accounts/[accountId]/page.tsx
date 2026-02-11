@@ -4,18 +4,20 @@ import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { subDays } from 'date-fns';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { KpiGrid, type KpiData } from '@/components/dashboard/kpi-card';
 import {
   PerformanceChart,
   MetricSelector,
   type ChartDataPoint,
 } from '@/components/dashboard/performance-chart';
+import { CampaignsTable } from '@/components/dashboard/campaigns-table';
 import { RecentInsights, type RecentInsight } from '@/components/dashboard/recent-insights';
 import { PendingStrategies, type PendingStrategy } from '@/components/dashboard/pending-strategies';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { RefreshCw, AlertTriangle, LayoutGrid, LineChart } from 'lucide-react';
 import { DateRangePicker } from '@/components/filters';
 import { useDateRangeUrlState, useUrlState } from '@/hooks';
 import { DashboardSkeleton } from '@/components/common';
@@ -158,6 +160,9 @@ export default function DashboardPage() {
 
   // URL 기반 날짜 범위 상태
   const [dateRange, setDateRange] = useDateRangeUrlState();
+
+  // URL 기반 탭 상태
+  const [activeTab, setActiveTab] = useUrlState<string>('tab', { defaultValue: 'campaigns' });
 
   // URL 기반 비교 토글 상태
   const [compareParam, setCompareParam] = useUrlState<string>('compare', { defaultValue: 'false' });
@@ -465,43 +470,72 @@ export default function DashboardPage() {
       {/* KPI Grid */}
       <KpiGrid kpis={kpiData} />
 
-      {/* Charts Section */}
-      <div className="space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <h2 className="text-lg font-semibold">성과 추이</h2>
-            <div className="flex items-center gap-2">
-              <Switch
-                id="compare-toggle"
-                checked={showComparison}
-                onCheckedChange={(checked) => setCompareParam(checked ? 'true' : 'false')}
-              />
-              <Label htmlFor="compare-toggle" className="text-sm text-muted-foreground cursor-pointer">
-                이전 기간 비교
-              </Label>
+      {/* Tabs: Campaigns / Performance */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="campaigns" className="flex items-center gap-2">
+            <LayoutGrid className="h-4 w-4" />
+            캠페인
+          </TabsTrigger>
+          <TabsTrigger value="performance" className="flex items-center gap-2">
+            <LineChart className="h-4 w-4" />
+            성과 추이
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Campaigns Tab */}
+        <TabsContent value="campaigns" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>캠페인 목록</CardTitle>
+              <CardDescription>
+                이 계정의 모든 캠페인과 성과를 확인하세요
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CampaignsTable accountId={accountId} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Performance Tab */}
+        <TabsContent value="performance" className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold">성과 추이</h2>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="compare-toggle"
+                  checked={showComparison}
+                  onCheckedChange={(checked) => setCompareParam(checked ? 'true' : 'false')}
+                />
+                <Label htmlFor="compare-toggle" className="text-sm text-muted-foreground cursor-pointer">
+                  이전 기간 비교
+                </Label>
+              </div>
             </div>
+            <MetricSelector
+              selected={chartMetrics}
+              onChange={setChartMetrics}
+              available={['spend', 'impressions', 'clicks', 'conversions', 'ctr', 'cvr', 'cpa', 'roas']}
+            />
           </div>
-          <MetricSelector
-            selected={chartMetrics}
-            onChange={setChartMetrics}
-            available={['spend', 'impressions', 'clicks', 'conversions', 'ctr', 'cvr', 'cpa', 'roas']}
-          />
-        </div>
-        {data?.chartData && data.chartData.length > 0 ? (
-          <PerformanceChart
-            data={data.chartData}
-            compareData={showComparison ? data.compareChartData : undefined}
-            metrics={chartMetrics}
-            title=""
-            height={350}
-            showComparison={showComparison}
-          />
-        ) : (
-          <div className="bg-muted rounded-lg p-12 text-center text-muted-foreground">
-            차트 데이터가 없습니다.
-          </div>
-        )}
-      </div>
+          {data?.chartData && data.chartData.length > 0 ? (
+            <PerformanceChart
+              data={data.chartData}
+              compareData={showComparison ? data.compareChartData : undefined}
+              metrics={chartMetrics}
+              title=""
+              height={350}
+              showComparison={showComparison}
+            />
+          ) : (
+            <div className="bg-muted rounded-lg p-12 text-center text-muted-foreground">
+              차트 데이터가 없습니다.
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
 
       {/* Insights and Strategies Grid */}
       <div className="grid md:grid-cols-2 gap-6">
