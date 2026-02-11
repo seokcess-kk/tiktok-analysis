@@ -306,7 +306,7 @@ function AccountsContent() {
           <CardHeader className="pb-2">
             <CardDescription>평균 ROAS</CardDescription>
             <CardTitle className="text-3xl">
-              {avgRoas.toFixed(1)}
+              {avgRoas.toFixed(2)}x
             </CardTitle>
           </CardHeader>
         </Card>
