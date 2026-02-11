@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Table,
   TableBody,
@@ -75,6 +76,7 @@ const statusLabels: Record<string, string> = {
 };
 
 export function CampaignsTable({ accountId, onCampaignSelect }: CampaignsTableProps) {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortField, setSortField] = useState<CampaignColumnId>('spend');
@@ -84,6 +86,14 @@ export function CampaignsTable({ accountId, onCampaignSelect }: CampaignsTablePr
     defaultColumns,
     'campaigns-table-columns'
   );
+
+  // 캠페인 클릭 시 캠페인 상세 페이지로 이동
+  const handleCampaignClick = (campaign: Campaign) => {
+    if (onCampaignSelect) {
+      onCampaignSelect(campaign);
+    }
+    router.push(`/accounts/${accountId}/campaigns/${campaign.id}`);
+  };
 
   useEffect(() => {
     fetchCampaigns();
@@ -221,7 +231,7 @@ export function CampaignsTable({ accountId, onCampaignSelect }: CampaignsTablePr
             <TableRow
               key={campaign.id}
               className="cursor-pointer hover:bg-muted/50"
-              onClick={() => onCampaignSelect?.(campaign)}
+              onClick={() => handleCampaignClick(campaign)}
             >
               {isVisible('name') && (
                 <TableCell>

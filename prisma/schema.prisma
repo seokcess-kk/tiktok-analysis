@@ -106,6 +106,8 @@ model Campaign {
   status           String
   adGroups         AdGroup[]
   metrics          PerformanceMetric[]
+  insights         AIInsight[]
+  strategies       AIStrategy[]
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
 
@@ -270,6 +272,8 @@ model AIInsight {
   id        String      @id @default(cuid())
   accountId String
   account   Account     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  campaignId String?    // 캠페인별 인사이트용
+  campaign   Campaign?  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   creativeId String?    // 소재별 인사이트용
   creative   Creative?  @relation(fields: [creativeId], references: [id], onDelete: Cascade)
   type      InsightType
@@ -288,6 +292,7 @@ model AIInsight {
 
   @@index([accountId, generatedAt])
   @@index([accountId, type])
+  @@index([campaignId])
   @@index([creativeId])
 }
 
@@ -309,6 +314,8 @@ model AIStrategy {
   id        String     @id @default(cuid())
   accountId String
   account   Account    @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  campaignId String?   // 캠페인별 전략용
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   insightId String?
   insight   AIInsight? @relation(fields: [insightId], references: [id], onDelete: SetNull)
   creativeId String?   // 소재별 전략용
@@ -336,6 +343,7 @@ model AIStrategy {
 
   @@index([accountId, status])
   @@index([accountId, createdAt])
+  @@index([campaignId])
   @@index([creativeId])
 }
 

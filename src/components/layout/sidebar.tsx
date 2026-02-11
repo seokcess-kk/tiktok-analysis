@@ -11,6 +11,8 @@ import {
   FileText,
   Settings,
   Bell,
+  ArrowLeft,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +20,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
+  isBackLink?: boolean;
 }
 
 const mainNavItems: NavItem[] = [
@@ -58,6 +61,37 @@ function getAccountNavItems(accountId: string): NavItem[] {
   ];
 }
 
+function getCampaignNavItems(accountId: string, campaignId: string): NavItem[] {
+  return [
+    {
+      label: '← 계정으로',
+      href: `/accounts/${accountId}`,
+      icon: <ArrowLeft className="h-5 w-5" />,
+      isBackLink: true,
+    },
+    {
+      label: '캠페인 개요',
+      href: `/accounts/${accountId}/campaigns/${campaignId}`,
+      icon: <LayoutDashboard className="h-5 w-5" />,
+    },
+    {
+      label: 'AI 인사이트',
+      href: `/accounts/${accountId}/campaigns/${campaignId}/insights`,
+      icon: <Lightbulb className="h-5 w-5" />,
+    },
+    {
+      label: 'AI 전략',
+      href: `/accounts/${accountId}/campaigns/${campaignId}/strategies`,
+      icon: <Target className="h-5 w-5" />,
+    },
+    {
+      label: '광고그룹',
+      href: `/accounts/${accountId}/campaigns/${campaignId}/adgroups`,
+      icon: <Layers className="h-5 w-5" />,
+    },
+  ];
+}
+
 interface SidebarProps {
   accountId?: string;
 }
@@ -65,18 +99,25 @@ interface SidebarProps {
 export function Sidebar({ accountId }: SidebarProps) {
   const pathname = usePathname();
 
-  // pathname에서 직접 accountId 추출 - useMemo로 pathname 변경 시에만 재계산
-  const currentAccountId = useMemo(() => {
-    if (accountId) return accountId;
-    const match = pathname?.match(/\/accounts\/([^\/]+)/);
-    return match?.[1] || null;
+  // pathname에서 직접 accountId와 campaignId 추출
+  const { currentAccountId, currentCampaignId } = useMemo(() => {
+    const accountMatch = pathname?.match(/\/accounts\/([^\/]+)/);
+    const campaignMatch = pathname?.match(/\/accounts\/([^\/]+)\/campaigns\/([^\/]+)/);
+
+    return {
+      currentAccountId: accountId || accountMatch?.[1] || null,
+      currentCampaignId: campaignMatch?.[2] || null,
+    };
   }, [pathname, accountId]);
 
   const navItems = useMemo(() => {
+    if (currentAccountId && currentCampaignId) {
+      return getCampaignNavItems(currentAccountId, currentCampaignId);
+    }
     return currentAccountId
       ? getAccountNavItems(currentAccountId)
       : mainNavItems;
-  }, [currentAccountId]);
+  }, [currentAccountId, currentCampaignId]);
 
   return (
     <aside className="hidden md:block fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background">
@@ -98,7 +139,9 @@ export function Sidebar({ accountId }: SidebarProps) {
               href={item.href}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-                isActive
+                item.isBackLink
+                  ? 'text-muted-foreground hover:bg-accent hover:text-accent-foreground border-b mb-2 pb-3'
+                  : isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
               )}
