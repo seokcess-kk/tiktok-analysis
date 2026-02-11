@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-02-10T16:31:24.844Z",
+  "lastUpdated": "2026-02-10T16:51:56.412Z",
   "activeFeatures": [
     "tiktok-analysis",
     "db",
@@ -44,7 +44,9 @@
     "filters",
     "search",
     "campaigns",
-    "settings"
+    "settings",
+    "daily-insights",
+    "anomaly-detection"
   ],
   "primaryFeature": "tiktok-analysis",
   "features": {
@@ -112,9 +114,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T13:58:12.554Z",
-        "lastUpdated": "2026-02-05T15:31:02.199Z"
+        "lastUpdated": "2026-02-10T16:48:19.008Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\lib\\ai\\client.ts"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\lib\\ai\\fallback.ts"
     },
     "schemas": {
       "phase": "do",
@@ -307,9 +309,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T14:26:04.253Z",
-        "lastUpdated": "2026-02-10T16:30:05.655Z"
+        "lastUpdated": "2026-02-10T16:51:17.522Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\accounts\\[accountId]\\insights\\page.tsx"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\api\\seed\\insights\\route.ts"
     },
     "[strategyId]": {
       "phase": "do",
@@ -609,6 +611,32 @@
         "lastUpdated": "2026-02-10T16:30:34.974Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\settings\\page.tsx"
+    },
+    "daily-insights": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-02-10T16:49:03.762Z",
+        "lastUpdated": "2026-02-10T16:49:03.762Z"
+      },
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\api\\jobs\\daily-insights\\route.ts"
+    },
+    "anomaly-detection": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-02-10T16:51:56.412Z",
+        "lastUpdated": "2026-02-10T16:51:56.412Z"
+      },
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\api\\jobs\\anomaly-detection\\route.ts"
     }
   },
   "pipeline": {
@@ -619,7 +647,7 @@
   "session": {
     "startedAt": "2026-02-01T07:00:00.000Z",
     "onboardingCompleted": true,
-    "lastActivity": "2026-02-10T16:31:24.844Z"
+    "lastActivity": "2026-02-10T16:51:56.412Z"
   },
   "history": [
     {
@@ -2137,6 +2165,30 @@
     {
       "timestamp": "2026-02-10T16:31:24.844Z",
       "feature": "tiktok-analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T16:48:19.008Z",
+      "feature": "ai",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T16:49:03.762Z",
+      "feature": "daily-insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T16:51:17.522Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-10T16:51:56.412Z",
+      "feature": "anomaly-detection",
       "phase": "do",
       "action": "updated"
     }
