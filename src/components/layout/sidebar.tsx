@@ -63,7 +63,13 @@ interface SidebarProps {
 
 export function Sidebar({ accountId }: SidebarProps) {
   const pathname = usePathname();
-  const navItems = accountId ? getAccountNavItems(accountId) : mainNavItems;
+
+  // URL에서 accountId 추출 (/accounts/xxx/... 형태)
+  const extractedAccountId = accountId || pathname.match(/\/accounts\/([^\/]+)/)?.[1];
+
+  const navItems = extractedAccountId
+    ? getAccountNavItems(extractedAccountId)
+    : mainNavItems;
 
   return (
     <aside className="hidden md:block fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background">

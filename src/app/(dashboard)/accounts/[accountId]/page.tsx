@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
+import Link from 'next/link';
 import { subDays } from 'date-fns';
 import { Card, CardContent } from '@/components/ui/card';
 import { KpiGrid, type KpiData } from '@/components/dashboard/kpi-card';
@@ -452,9 +453,11 @@ export default function DashboardPage() {
                 {criticalInsight.summary}
               </p>
             </div>
-            <Button variant="destructive" size="sm">
-              자세히 보기
-            </Button>
+            <Link href={`/accounts/${accountId}/insights?severity=CRITICAL`}>
+              <Button variant="destructive" size="sm">
+                자세히 보기
+              </Button>
+            </Link>
           </CardContent>
         </Card>
       )}
