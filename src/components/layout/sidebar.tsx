@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -64,26 +64,19 @@ interface SidebarProps {
 
 export function Sidebar({ accountId }: SidebarProps) {
   const pathname = usePathname();
-  const [currentAccountId, setCurrentAccountId] = useState<string | null>(accountId || null);
 
-  // 클라이언트에서 pathname이 변경될 때마다 accountId 추출
-  useEffect(() => {
-    if (accountId) {
-      setCurrentAccountId(accountId);
-      return;
-    }
-
-    const match = pathname.match(/\/accounts\/([^\/]+)/);
-    if (match && match[1]) {
-      setCurrentAccountId(match[1]);
-    } else {
-      setCurrentAccountId(null);
-    }
+  // pathname에서 직접 accountId 추출 - useMemo로 pathname 변경 시에만 재계산
+  const currentAccountId = useMemo(() => {
+    if (accountId) return accountId;
+    const match = pathname?.match(/\/accounts\/([^\/]+)/);
+    return match?.[1] || null;
   }, [pathname, accountId]);
 
-  const navItems = currentAccountId
-    ? getAccountNavItems(currentAccountId)
-    : mainNavItems;
+  const navItems = useMemo(() => {
+    return currentAccountId
+      ? getAccountNavItems(currentAccountId)
+      : mainNavItems;
+  }, [currentAccountId]);
 
   return (
     <aside className="hidden md:block fixed left-0 top-0 z-40 h-screen w-64 border-r bg-background">
