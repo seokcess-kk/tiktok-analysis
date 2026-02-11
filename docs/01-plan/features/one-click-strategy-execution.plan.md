@@ -1,0 +1,199 @@
+# Plan: One-Click Strategy Execution
+
+## Overview
+| Item | Description |
+|------|-------------|
+| Feature Name | one-click-strategy-execution |
+| Created | 2026-02-11 |
+| Author | Claude Opus 4.5 |
+| Status | Draft |
+| Priority | Medium |
+
+## Problem Statement
+
+### Current State
+현재 AI가 생성한 전략(AIStrategy)은 사용자가 수동으로 TikTok Ads Manager에 접속하여 직접 설정을 변경해야 합니다:
+- 전략 카드에서 "수락" 버튼 클릭 → 상태만 ACCEPTED로 변경
+- 실제 예산 조정, 캠페인 상태 변경, 타겟팅 수정은 사용자가 직접 수행
+- 완료 후 결과를 수동 입력해야 함
+
+### Pain Points
+1. **수동 작업 필요**: 전략 실행을 위해 TikTok Ads Manager에 별도 접속 필요
+2. **시간 지연**: 전략 수락에서 실제 적용까지 시간 소요
+3. **실행 누락**: 수락했지만 실제 실행을 잊어버리는 경우 발생
+4. **결과 추적 어려움**: 전략 적용 전후 성과 비교가 어려움
+
+### Goal
+전략 카드에서 "원클릭 실행" 버튼으로 TikTok API를 통해 직접 설정을 변경하는 기능 구현
+
+## Requirements
+
+### Functional Requirements
+
+#### FR-01: 실행 가능 전략 표시
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-01-1 | 전략 타입별 실행 가능 여부 표시 (BUDGET, CAMPAIGN만 자동 실행 가능) | Must |
+| FR-01-2 | TARGETING, CREATIVE, BIDDING은 가이드 제공만 (수동 실행) | Must |
+| FR-01-3 | 실행 버튼에 예상 변경 사항 미리보기 표시 | Should |
+
+#### FR-02: 예산 전략 실행 (BUDGET)
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-02-1 | 캠페인/광고그룹 일일 예산 변경 API 호출 | Must |
+| FR-02-2 | 예산 증액/감액 비율 기반 자동 계산 | Must |
+| FR-02-3 | 예산 변경 전 확인 모달 표시 | Must |
+| FR-02-4 | 변경 전후 예산 금액 로깅 | Must |
+
+#### FR-03: 캠페인 전략 실행 (CAMPAIGN)
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-03-1 | 캠페인/광고그룹 상태 변경 (ENABLE/DISABLE) | Must |
+| FR-03-2 | 저성과 캠페인 일시 중지 자동 실행 | Must |
+| FR-03-3 | 상태 변경 전 확인 모달 표시 | Must |
+
+#### FR-04: 실행 결과 기록
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-04-1 | 전략 실행 시 자동으로 상태 IN_PROGRESS로 변경 | Must |
+| FR-04-2 | API 호출 성공 시 COMPLETED로 변경 | Must |
+| FR-04-3 | actualResult 필드에 변경 내용 자동 기록 | Must |
+| FR-04-4 | 실행 전후 메트릭 스냅샷 저장 | Should |
+
+#### FR-05: 롤백 기능
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-05-1 | 실행 전 설정값 백업 | Should |
+| FR-05-2 | 실행 취소(롤백) 버튼 제공 (24시간 내) | Could |
+
+### Non-Functional Requirements
+
+| ID | Requirement | Target |
+|----|-------------|--------|
+| NFR-01 | API 호출 응답 시간 | < 3초 |
+| NFR-02 | 실행 성공률 | > 99% |
+| NFR-03 | 에러 발생 시 자동 롤백 | 필수 |
+| NFR-04 | Rate Limit 준수 | TikTok API 제한 내 |
+
+## Scope
+
+### In Scope
+- BUDGET 타입 전략 자동 실행 (예산 변경)
+- CAMPAIGN 타입 전략 자동 실행 (상태 변경)
+- 실행 확인 모달 UI
+- 실행 결과 자동 기록
+- 실행 이력 조회
+
+### Out of Scope
+- TARGETING 전략 자동 실행 (복잡한 타겟팅 설정 필요)
+- CREATIVE 전략 자동 실행 (소재 업로드 필요)
+- BIDDING 전략 자동 실행 (입찰 전략 변경은 위험)
+- 롤백 기능 (Phase 2에서 구현)
+
+## Technical Considerations
+
+### TikTok API Endpoints
+```
+# 캠페인 예산 수정
+POST /campaign/update/
+{
+  "advertiser_id": "xxx",
+  "campaign_id": "xxx",
+  "budget": 1000.00
+}
+
+# 캠페인 상태 수정
+POST /campaign/update/
+{
+  "advertiser_id": "xxx",
+  "campaign_id": "xxx",
+  "operation_status": "ENABLE" | "DISABLE"
+}
+
+# 광고그룹 예산/상태 수정
+POST /adgroup/update/
+{
+  "advertiser_id": "xxx",
+  "adgroup_id": "xxx",
+  "budget": 500.00,
+  "operation_status": "ENABLE"
+}
+```
+
+### Architecture
+```
+[Strategy Card UI]
+       ↓
+[Execute Button Click]
+       ↓
+[Confirmation Modal]
+       ↓
+[/api/strategies/{id}/execute] (New API)
+       ↓
+[TikTokClient.updateCampaign() / updateAdGroup()]
+       ↓
+[Update Strategy Status → COMPLETED]
+       ↓
+[Log Execution Result]
+```
+
+### New Files to Create
+| File | Purpose |
+|------|---------|
+| `src/app/api/ai/strategies/[accountId]/[strategyId]/execute/route.ts` | 전략 실행 API |
+| `src/lib/tiktok/executor.ts` | TikTok API 실행 로직 |
+| `src/components/ai/execution-modal.tsx` | 실행 확인 모달 |
+
+### Files to Modify
+| File | Changes |
+|------|---------|
+| `src/components/ai/strategy-card.tsx` | 실행 버튼 추가, 실행 가능 여부 표시 |
+| `src/lib/tiktok/client.ts` | updateCampaign, updateAdGroup 메서드 추가 |
+| `prisma/schema.prisma` | executedAt, executionLog 필드 추가 (optional) |
+
+## Risks & Mitigations
+
+| Risk | Impact | Probability | Mitigation |
+|------|--------|-------------|------------|
+| TikTok API 오류로 잘못된 설정 적용 | High | Low | 실행 전 확인 모달, 변경 사항 미리보기 |
+| Rate Limit 초과 | Medium | Medium | 배치 실행 시 딜레이 적용 |
+| 예산 과다 지출 | High | Low | 예산 변경 한도 설정 (max 200%) |
+| 캠페인 실수로 중지 | Medium | Low | 상태 변경 전 재확인 |
+
+## Success Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| 전략 실행률 | > 80% (수락된 전략 중) | DB 쿼리 |
+| 평균 실행 시간 | < 2초 | API 로그 |
+| 실행 오류율 | < 1% | 에러 로그 |
+| 사용자 만족도 | 전략 수락 → 완료 전환율 증가 | 상태 변화 추적 |
+
+## Timeline Estimate
+
+| Phase | Task | Estimate |
+|-------|------|----------|
+| Phase 1 | TikTok Client 메서드 추가 | 0.5일 |
+| Phase 2 | Execute API 엔드포인트 구현 | 0.5일 |
+| Phase 3 | 실행 모달 UI 구현 | 0.5일 |
+| Phase 4 | 전략 카드 UI 수정 | 0.5일 |
+| Phase 5 | 테스트 및 검증 | 0.5일 |
+| **Total** | | **2.5일** |
+
+## Approval
+
+| Role | Name | Date | Status |
+|------|------|------|--------|
+| Product Owner | - | - | Pending |
+| Tech Lead | - | - | Pending |
+| Developer | Claude Opus 4.5 | 2026-02-11 | Draft |
+
+---
+
+## Next Steps
+1. 이 Plan 문서 승인
+2. `/pdca design one-click-strategy-execution` 실행하여 상세 설계 문서 작성
+3. 구현 시작
+
+---
+*Generated by bkit PDCA Skill v1.5.0*
