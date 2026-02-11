@@ -185,22 +185,8 @@ export async function POST(request: NextRequest) {
           },
         });
 
-        // 알림 생성
-        await prisma.notification.create({
-          data: {
-            userId: 'system',
-            type: 'ANOMALY',
-            title: insight.title,
-            message: anomaly.message,
-            priority: anomaly.severity === 'CRITICAL' ? 'HIGH' : 'MEDIUM',
-            link: `/accounts/${anomaly.accountId}/insights`,
-            metadata: {
-              accountId: anomaly.accountId,
-              insightId: insight.id,
-              anomalyType: anomaly.type,
-            },
-          },
-        });
+        // 알림 생성 - 실제 사용자 ID가 필요하므로 시스템 알림은 생략
+        // TODO: 계정에 연결된 사용자에게 알림을 보내도록 개선 필요
 
         return {
           insightId: insight.id,

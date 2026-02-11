@@ -39,7 +39,7 @@ export function Header({ title, accountId }: HeaderProps) {
         <CommandMenu accountId={accountId} />
 
         {/* Notifications */}
-        <NotificationBell userId={session?.user?.id} />
+        <NotificationBell userId={(session?.user as { id?: string })?.id} />
 
         {/* User Menu */}
         <DropdownMenu>

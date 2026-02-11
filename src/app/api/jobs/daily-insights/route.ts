@@ -190,8 +190,8 @@ export async function POST(request: NextRequest) {
                 title: insight.title,
                 summary: insight.summary,
                 details: {
-                  keyFindings: insight.keyFindings || [],
-                  recommendations: insight.recommendations || [],
+                  keyFindings: (insight.keyFindings || []) as string[],
+                  recommendations: (insight.recommendations || []) as string[],
                 },
               },
             })
@@ -208,29 +208,20 @@ export async function POST(request: NextRequest) {
                 priority: strategy.priority as 'HIGH' | 'MEDIUM' | 'LOW',
                 title: strategy.title,
                 description: strategy.description,
-                expectedImpact: strategy.expectedImpact,
+                expectedImpact: strategy.expectedImpact || { metric: 'unknown', changePercent: 0 },
+                actionItems: [],
+                difficulty: 'MEDIUM',
               },
             })
           )
         );
 
         // CRITICAL 인사이트에 대한 알림 생성
+        // TODO: 실제 사용자 ID가 필요하므로 현재는 생략
+        // 계정에 연결된 사용자에게 알림을 보내도록 개선 필요
         const criticalInsights = savedInsights.filter((i) => i.severity === 'CRITICAL');
         if (criticalInsights.length > 0) {
-          await Promise.all(
-            criticalInsights.map((insight) =>
-              prisma.notification.create({
-                data: {
-                  userId: 'system', // 시스템 알림
-                  type: 'ANOMALY',
-                  title: insight.title,
-                  message: insight.summary,
-                  link: `/accounts/${account.id}/insights`,
-                  metadata: { accountId: account.id, insightId: insight.id },
-                },
-              })
-            )
-          );
+          console.log(`[Daily Insights] ${criticalInsights.length} critical insights detected for account ${account.id}`);
         }
 
         results.push({

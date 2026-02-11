@@ -135,6 +135,8 @@ export async function POST(request: NextRequest) {
         title: '고성과 캠페인 예산 증액 권장',
         description: '현재 ROAS 3.2x를 기록 중인 캠페인의 예산을 20% 증액하면 추가 전환 확보가 가능합니다.',
         expectedImpact: { metric: 'Conversions', changePercent: 15 },
+        actionItems: [{ action: '예산 증액', target: '고성과 캠페인', value: '20%', reason: 'ROAS 최적화' }],
+        difficulty: 'EASY' as const,
         status: 'PENDING' as const,
       },
       {
@@ -144,6 +146,8 @@ export async function POST(request: NextRequest) {
         title: '숏폼 동영상 콘텐츠 확대',
         description: '15초 이하 동영상이 높은 완료율을 보입니다. 숏폼 콘텐츠 비중을 50%까지 확대하세요.',
         expectedImpact: { metric: 'CTR', changePercent: 25 },
+        actionItems: [{ action: '콘텐츠 제작', target: '숏폼 동영상', value: '50%', reason: '완료율 개선' }],
+        difficulty: 'MEDIUM' as const,
         status: 'PENDING' as const,
       },
       {
@@ -153,6 +157,8 @@ export async function POST(request: NextRequest) {
         title: '오디언스 세분화 제안',
         description: '25-34세 여성 그룹에서 전환율이 가장 높습니다. 해당 세그먼트 타겟팅 강화를 권장합니다.',
         expectedImpact: { metric: 'CVR', changePercent: 12 },
+        actionItems: [{ action: '타겟팅 조정', target: '25-34세 여성', value: '강화', reason: '전환율 최적화' }],
+        difficulty: 'EASY' as const,
         status: 'PENDING' as const,
       },
       {
@@ -162,6 +168,8 @@ export async function POST(request: NextRequest) {
         title: '입찰 전략 최적화',
         description: '현재 수동 입찰에서 자동 입찰(Target CPA)로 전환 시 효율 개선이 예상됩니다.',
         expectedImpact: { metric: 'CPA', changePercent: -10 },
+        actionItems: [{ action: '입찰 전환', target: '자동 입찰', value: 'Target CPA', reason: '효율 개선' }],
+        difficulty: 'EASY' as const,
         status: 'PENDING' as const,
       },
       {
@@ -171,6 +179,8 @@ export async function POST(request: NextRequest) {
         title: '저성과 캠페인 일시 중지',
         description: 'ROAS 1.0 미만인 2개 캠페인이 있습니다. 예산 재배분을 위해 일시 중지를 권장합니다.',
         expectedImpact: { metric: 'ROAS', changePercent: 18 },
+        actionItems: [{ action: '캠페인 중지', target: '저성과 캠페인', value: '2개', reason: '예산 재배분' }],
+        difficulty: 'EASY' as const,
         status: 'PENDING' as const,
       },
     ];
@@ -192,26 +202,13 @@ export async function POST(request: NextRequest) {
       sampleStrategies.map((strategy) => prisma.aIStrategy.create({ data: strategy }))
     );
 
-    // CRITICAL/WARNING 인사이트에 대한 알림 생성
+    // CRITICAL/WARNING 인사이트 로깅 (알림은 실제 사용자 ID가 필요)
     const alertInsights = createdInsights.filter(
       (i) => i.severity === 'CRITICAL' || i.severity === 'WARNING'
     );
 
     if (alertInsights.length > 0) {
-      await Promise.all(
-        alertInsights.map((insight) =>
-          prisma.notification.create({
-            data: {
-              userId: 'system',
-              type: 'ANOMALY',
-              title: insight.title,
-              message: insight.summary,
-              link: `/accounts/${account.id}/insights`,
-              metadata: { accountId: account.id, insightId: insight.id },
-            },
-          })
-        )
-      );
+      console.log(`[Seed] ${alertInsights.length} alert insights created for account ${account.id}`);
     }
 
     return NextResponse.json({

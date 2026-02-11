@@ -48,7 +48,7 @@ export default function NotificationsPage() {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const userId = session?.user?.id || 'demo-user';
+      const userId = (session?.user as { id?: string })?.id || 'demo-user';
       const res = await fetch(`/api/notifications?userId=${userId}&limit=50`);
       const data = await res.json();
 
@@ -82,7 +82,7 @@ export default function NotificationsPage() {
 
   const markAllAsRead = async () => {
     try {
-      const userId = session?.user?.id || 'demo-user';
+      const userId = (session?.user as { id?: string })?.id || 'demo-user';
       await fetch('/api/notifications', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
