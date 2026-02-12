@@ -66,20 +66,63 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // 광고그룹별 메트릭
     const adGroupIds = campaign.adGroups.map((ag) => ag.id);
-    const adGroupMetrics = await prisma.performanceMetric.groupBy({
-      by: ['adGroupId'],
-      where: {
-        adGroupId: { in: adGroupIds },
-        level: 'ADGROUP',
-        date: { gte: weekAgo, lte: today },
-      },
-      _sum: {
-        spend: true,
-        impressions: true,
-        clicks: true,
-        conversions: true,
-      },
-    });
+    const [adGroupMetrics, creatives] = await Promise.all([
+      prisma.performanceMetric.groupBy({
+        by: ['adGroupId'],
+        where: {
+          adGroupId: { in: adGroupIds },
+          level: 'ADGROUP',
+          date: { gte: weekAgo, lte: today },
+        },
+        _sum: {
+          spend: true,
+          impressions: true,
+          clicks: true,
+          conversions: true,
+        },
+      }),
+      // 캠페인 크리에이티브 조회
+      prisma.creative.findMany({
+        where: {
+          ads: {
+            some: {
+              adGroup: { campaignId },
+            },
+          },
+        },
+        include: {
+          metrics: {
+            where: { date: { gte: weekAgo, lte: today } },
+          },
+          fatigue: true,
+        },
+        take: 10,
+      }),
+    ]);
+
+    // 상위 크리에이티브 데이터 변환 (전환 기준 정렬)
+    const topCreatives = creatives
+      .map((c) => {
+        const totalSpend = c.metrics.reduce((sum, m) => sum + m.spend, 0);
+        const totalConversions = c.metrics.reduce((sum, m) => sum + m.conversions, 0);
+        const totalClicks = c.metrics.reduce((sum, m) => sum + m.clicks, 0);
+        const totalImpressions = c.metrics.reduce((sum, m) => sum + m.impressions, 0);
+        const latestFatigue = c.fatigue[0];
+        return {
+          name: c.tiktokCreativeId,
+          metrics: {
+            spend: totalSpend,
+            conversions: totalConversions,
+            clicks: totalClicks,
+            impressions: totalImpressions,
+            ctr: totalImpressions > 0 ? (totalClicks / totalImpressions) * 100 : 0,
+            fatigueIndex: latestFatigue?.fatigueIndex || 0,
+          },
+        };
+      })
+      .filter((c) => c.metrics.spend > 0)
+      .sort((a, b) => (b.metrics.conversions as number) - (a.metrics.conversions as number))
+      .slice(0, 5);
 
     // AI 인사이트 생성
     const prompt = insightPrompts.dailySummary;
@@ -112,7 +155,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           ctr: t.ctr || 0,
           cpa: t.cpa || 0,
         })),
-        topCreatives: [],
+        topCreatives: topCreatives,
         campaigns: campaign.adGroups.map((ag) => {
           const agMetrics = adGroupMetrics.find((m) => m.adGroupId === ag.id);
           return {

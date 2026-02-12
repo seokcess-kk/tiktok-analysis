@@ -65,7 +65,11 @@ export async function POST(request: NextRequest) {
     for (const account of accounts) {
       try {
         // 최근 메트릭 조회 (어제와 그저께)
-        const [currentMetric, previousMetric] = await Promise.all([
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+
+        const [currentMetric, previousMetric, trendMetrics, topCreatives, campaigns] = await Promise.all([
+          // 어제 메트릭
           prisma.performanceMetric.findFirst({
             where: {
               accountId: account.id,
@@ -77,6 +81,7 @@ export async function POST(request: NextRequest) {
             },
             orderBy: { date: 'desc' },
           }),
+          // 그저께 메트릭
           prisma.performanceMetric.findFirst({
             where: {
               accountId: account.id,
@@ -88,7 +93,99 @@ export async function POST(request: NextRequest) {
             },
             orderBy: { date: 'desc' },
           }),
+          // 7일 트렌드 메트릭
+          prisma.performanceMetric.findMany({
+            where: {
+              accountId: account.id,
+              level: 'ACCOUNT',
+              date: { gte: weekAgo, lte: today },
+            },
+            orderBy: { date: 'asc' },
+            take: 7,
+          }),
+          // 상위 크리에이티브 (최근 7일 성과 기준)
+          prisma.creative.findMany({
+            where: {
+              ads: {
+                some: {
+                  adGroup: {
+                    campaign: { accountId: account.id },
+                  },
+                },
+              },
+            },
+            include: {
+              metrics: {
+                where: { date: { gte: weekAgo } },
+              },
+            },
+            take: 10,
+          }),
+          // 활성 캠페인 (최근 7일 성과 포함)
+          prisma.campaign.findMany({
+            where: {
+              accountId: account.id,
+              status: 'ACTIVE',
+            },
+            include: {
+              metrics: {
+                where: {
+                  level: 'CAMPAIGN',
+                  date: { gte: weekAgo },
+                },
+              },
+            },
+            take: 5,
+          }),
         ]);
+
+        // 트렌드 데이터 변환
+        const trend = trendMetrics.map((m) => ({
+          date: m.date.toISOString(),
+          spend: m.spend,
+          ctr: m.ctr || 0,
+          cpa: m.cpa || 0,
+        }));
+
+        // 상위 크리에이티브 데이터 변환 (ROAS 기준 정렬)
+        const topCreativesData = topCreatives
+          .map((c) => {
+            const totalSpend = c.metrics.reduce((sum, m) => sum + m.spend, 0);
+            const totalConversions = c.metrics.reduce((sum, m) => sum + m.conversions, 0);
+            const totalClicks = c.metrics.reduce((sum, m) => sum + m.clicks, 0);
+            const totalImpressions = c.metrics.reduce((sum, m) => sum + m.impressions, 0);
+            return {
+              name: c.tiktokCreativeId,
+              metrics: {
+                spend: totalSpend,
+                conversions: totalConversions,
+                clicks: totalClicks,
+                impressions: totalImpressions,
+                roas: totalSpend > 0 ? (totalConversions * 100) / totalSpend : 0,
+              },
+            };
+          })
+          .filter((c) => c.metrics.spend > 0)
+          .sort((a, b) => (b.metrics.roas as number) - (a.metrics.roas as number))
+          .slice(0, 5);
+
+        // 캠페인 데이터 변환
+        const campaignsData = campaigns.map((c) => {
+          const totalSpend = c.metrics.reduce((sum, m) => sum + m.spend, 0);
+          const totalImpressions = c.metrics.reduce((sum, m) => sum + m.impressions, 0);
+          const totalClicks = c.metrics.reduce((sum, m) => sum + m.clicks, 0);
+          const totalConversions = c.metrics.reduce((sum, m) => sum + m.conversions, 0);
+          return {
+            name: c.name,
+            status: c.status,
+            metrics: {
+              spend: totalSpend,
+              impressions: totalImpressions,
+              clicks: totalClicks,
+              conversions: totalConversions,
+            },
+          };
+        });
 
         // 메트릭 데이터 변환
         const currentMetrics: MetricData = {
@@ -158,9 +255,9 @@ export async function POST(request: NextRequest) {
                   cpa: previousMetrics.cpa,
                   roas: previousMetrics.roas,
                 },
-                trend: [],
-                topCreatives: [],
-                campaigns: [],
+                trend: trend,
+                topCreatives: topCreativesData,
+                campaigns: campaignsData,
               }),
               InsightsResponseSchema
             );

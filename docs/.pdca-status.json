@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-02-12T10:03:07.151Z",
+  "lastUpdated": "2026-02-12T10:20:05.342Z",
   "activeFeatures": [
     "tiktok-analysis",
     "db",
@@ -124,9 +124,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T13:58:12.554Z",
-        "lastUpdated": "2026-02-12T09:56:47.558Z"
+        "lastUpdated": "2026-02-12T10:18:02.678Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\ai\\ai-hub-card.tsx"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\lib\\ai\\client.ts"
     },
     "schemas": {
       "phase": "do",
@@ -215,9 +215,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T14:00:47.820Z",
-        "lastUpdated": "2026-02-11T06:21:36.377Z"
+        "lastUpdated": "2026-02-12T10:20:05.342Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\api\\ai\\strategies\\[accountId]\\campaigns\\[campaignId]\\generate\\route.ts"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\api\\ai\\insights\\[accountId]\\campaigns\\[campaignId]\\generate\\route.ts"
     },
     "analytics": {
       "phase": "do",
@@ -631,7 +631,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-10T16:49:03.762Z",
-        "lastUpdated": "2026-02-11T01:39:05.527Z"
+        "lastUpdated": "2026-02-12T10:19:54.224Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\api\\jobs\\daily-insights\\route.ts"
     },
@@ -787,7 +787,7 @@
   "session": {
     "startedAt": "2026-02-01T07:00:00.000Z",
     "onboardingCompleted": true,
-    "lastActivity": "2026-02-12T10:03:07.151Z"
+    "lastActivity": "2026-02-12T10:20:05.342Z"
   },
   "history": [
     {
@@ -3427,6 +3427,60 @@
     {
       "timestamp": "2026-02-12T10:03:07.151Z",
       "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:18:02.678Z",
+      "feature": "ai",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:18:26.190Z",
+      "feature": "daily-insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:18:31.832Z",
+      "feature": "daily-insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:18:49.710Z",
+      "feature": "generate",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:18:55.051Z",
+      "feature": "generate",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:19:29.098Z",
+      "feature": "daily-insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:19:37.062Z",
+      "feature": "generate",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:19:54.224Z",
+      "feature": "daily-insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T10:20:05.342Z",
+      "feature": "generate",
       "phase": "do",
       "action": "updated"
     }

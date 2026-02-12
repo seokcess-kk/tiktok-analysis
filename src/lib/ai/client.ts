@@ -4,13 +4,21 @@ import { z } from 'zod';
 // Lazy-loaded OpenAI client to avoid build-time errors
 let openaiInstance: OpenAI | null = null;
 
+// Retry 설정
+const MAX_RETRIES = 3;
+const INITIAL_DELAY = 1000; // 1초
+
 function getOpenAI(): OpenAI {
   if (!openaiInstance) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       throw new Error('OPENAI_API_KEY environment variable is not set');
     }
-    openaiInstance = new OpenAI({ apiKey });
+    openaiInstance = new OpenAI({
+      apiKey,
+      timeout: 30000, // 30초 timeout
+      maxRetries: 0, // 직접 retry 로직 사용
+    });
   }
   return openaiInstance;
 }
@@ -18,6 +26,42 @@ function getOpenAI(): OpenAI {
 export interface AIRequestOptions {
   temperature?: number;
   maxTokens?: number;
+  retries?: number;
+}
+
+/**
+ * Retry 로직을 적용한 함수 래퍼
+ * Rate limit(429) 또는 서버 오류(500, 503) 시 재시도
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  retries: number = MAX_RETRIES
+): Promise<T> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+
+      // Rate limit 또는 일시적 오류인 경우에만 재시도
+      const isRetryable =
+        error instanceof OpenAI.APIError &&
+        (error.status === 429 || error.status === 500 || error.status === 503);
+
+      if (!isRetryable || attempt === retries - 1) {
+        console.error(`[AI Client] Final error after ${attempt + 1} attempts:`, lastError.message);
+        throw lastError;
+      }
+
+      const delay = INITIAL_DELAY * Math.pow(2, attempt);
+      console.log(`[AI Client] Retry attempt ${attempt + 1}/${retries} after ${delay}ms (${lastError.message})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError;
 }
 
 export async function generateCompletion<T>(
@@ -26,35 +70,41 @@ export async function generateCompletion<T>(
   schema: z.ZodType<T>,
   options: AIRequestOptions = {}
 ): Promise<T> {
-  const { temperature = 0.3, maxTokens = 4096 } = options;
+  const { temperature = 0.3, maxTokens = 4096, retries = MAX_RETRIES } = options;
 
   const openai = getOpenAI();
 
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o', // GPT-5.2 사용 시 모델명 변경
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    temperature,
-    max_tokens: maxTokens,
-    response_format: { type: 'json_object' },
-  });
+  return withRetry(async () => {
+    console.log('[AI Client] Sending request to OpenAI...');
 
-  const content = response.choices[0].message.content;
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature,
+      max_tokens: maxTokens,
+      response_format: { type: 'json_object' },
+    });
 
-  if (!content) {
-    throw new Error('AI response is empty');
-  }
+    const content = response.choices[0].message.content;
 
-  try {
-    const parsed = JSON.parse(content);
-    return schema.parse(parsed);
-  } catch (error) {
-    console.error('AI Response parsing error:', error);
-    console.error('Raw content:', content);
-    throw new Error('Failed to parse AI response');
-  }
+    if (!content) {
+      throw new Error('AI response is empty');
+    }
+
+    try {
+      const parsed = JSON.parse(content);
+      const validated = schema.parse(parsed);
+      console.log('[AI Client] Response parsed and validated successfully');
+      return validated;
+    } catch (error) {
+      console.error('[AI Client] Response parsing error:', error);
+      console.error('[AI Client] Raw content:', content.substring(0, 500));
+      throw new Error('Failed to parse AI response');
+    }
+  }, retries);
 }
 
 export async function generateStreamingCompletion(
