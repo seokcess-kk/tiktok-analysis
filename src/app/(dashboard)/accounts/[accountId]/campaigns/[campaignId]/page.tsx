@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { subDays } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { KpiGrid, type KpiData } from '@/components/dashboard/kpi-card';
@@ -124,6 +125,7 @@ const statusLabels: Record<string, string> = {
 
 export default function CampaignDashboardPage() {
   const params = useParams();
+  const router = useRouter();
   const accountId = params.accountId as string;
   const campaignId = params.campaignId as string;
 
@@ -458,9 +460,13 @@ export default function CampaignDashboardPage() {
                 </thead>
                 <tbody>
                   {adGroups.map((adGroup) => (
-                    <tr key={adGroup.id} className="border-b hover:bg-muted/50">
+                    <tr
+                      key={adGroup.id}
+                      className="border-b hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => router.push(`/accounts/${accountId}/campaigns/${campaignId}/adgroups/${adGroup.id}`)}
+                    >
                       <td className="py-3 px-2">
-                        <div className="font-medium truncate max-w-[200px]" title={adGroup.name}>
+                        <div className="font-medium truncate max-w-[200px] text-primary hover:underline" title={adGroup.name}>
                           {adGroup.name}
                         </div>
                       </td>
