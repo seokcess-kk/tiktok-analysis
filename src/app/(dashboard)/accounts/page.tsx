@@ -5,9 +5,9 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Building2, TrendingUp, TrendingDown, Minus, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils';
-import { FilterBar, SearchInput, SortDropdown, FilterDropdown, accountSortOptions, industryOptions, statusOptions } from '@/components/filters';
+import { Plus, Building2, Loader2, CheckCircle, AlertCircle, Megaphone } from 'lucide-react';
+import { FilterBar, SearchInput, FilterDropdown, industryOptions, statusOptions } from '@/components/filters';
+import { Badge } from '@/components/ui/badge';
 
 interface Account {
   id: string;
@@ -16,38 +16,6 @@ interface Account {
   status: string;
   client: { name: string; industry: string | null };
   _count: { campaigns: number; insights: number };
-}
-
-interface AccountMetrics {
-  spend: number;
-  roas: number;
-  cpa: number;
-  change: { spend: number; roas: number; cpa: number };
-}
-
-function ChangeIndicator({ value }: { value: number }) {
-  if (value > 0) {
-    return (
-      <span className="flex items-center text-green-600 text-sm">
-        <TrendingUp className="h-4 w-4 mr-1" />
-        +{value.toFixed(1)}%
-      </span>
-    );
-  }
-  if (value < 0) {
-    return (
-      <span className="flex items-center text-red-600 text-sm">
-        <TrendingDown className="h-4 w-4 mr-1" />
-        {value.toFixed(1)}%
-      </span>
-    );
-  }
-  return (
-    <span className="flex items-center text-muted-foreground text-sm">
-      <Minus className="h-4 w-4 mr-1" />
-      0%
-    </span>
-  );
 }
 
 function StatusMessage({ searchParams }: { searchParams: URLSearchParams }) {
@@ -87,14 +55,11 @@ function AccountsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const [accounts, setAccounts] = useState<Account[]>([]);
-  const [metricsMap, setMetricsMap] = useState<Record<string, AccountMetrics>>({});
   const [loading, setLoading] = useState(true);
-  const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [connecting, setConnecting] = useState(false);
 
   // URL 기반 필터 상태
   const searchQuery = searchParams.get('q') || '';
-  const sortBy = searchParams.get('sort') || 'spend_desc';
   const industryFilter = searchParams.get('industry') || 'all';
   const statusFilter = searchParams.get('status') || 'all';
 
@@ -113,7 +78,6 @@ function AccountsContent() {
   }, [searchParams, router, pathname]);
 
   const setSearchQuery = (value: string) => updateUrlParams({ q: value });
-  const setSortBy = (value: string) => updateUrlParams({ sort: value });
   const setIndustryFilter = (value: string) => updateUrlParams({ industry: value });
   const setStatusFilter = (value: string) => updateUrlParams({ status: value });
 
@@ -127,8 +91,6 @@ function AccountsContent() {
       const data = await res.json();
       if (data.success) {
         setAccounts(data.data);
-        // 계정 목록을 가져온 후 각 계정의 metrics 조회
-        fetchAllMetrics(data.data);
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error);
@@ -137,48 +99,14 @@ function AccountsContent() {
     }
   }
 
-  async function fetchAllMetrics(accountList: Account[]) {
-    setLoadingMetrics(true);
-    const newMetrics: Record<string, AccountMetrics> = {};
-
-    await Promise.all(
-      accountList.map(async (account) => {
-        try {
-          const res = await fetch(`/api/accounts/${account.id}/metrics?days=7`);
-          const data = await res.json();
-          if (data.success) {
-            newMetrics[account.id] = {
-              spend: data.data.totals.spend,
-              roas: data.data.averages.roas,
-              cpa: data.data.averages.cpa,
-              change: { spend: 0, roas: 0, cpa: 0 }, // TODO: 이전 기간 비교
-            };
-          }
-        } catch (error) {
-          console.error(`Failed to fetch metrics for ${account.id}:`, error);
-          // 에러 시 기본값
-          newMetrics[account.id] = { spend: 0, roas: 0, cpa: 0, change: { spend: 0, roas: 0, cpa: 0 } };
-        }
-      })
-    );
-
-    setMetricsMap(newMetrics);
-    setLoadingMetrics(false);
-  }
-
   function handleConnect() {
     setConnecting(true);
     window.location.href = '/api/auth/tiktok';
   }
 
-  const accountsWithMetrics = accounts.map((account) => ({
-    ...account,
-    metrics: metricsMap[account.id] || { spend: 0, roas: 0, cpa: 0, change: { spend: 0, roas: 0, cpa: 0 } },
-  }));
-
-  // Filter and sort accounts
-  const filteredAndSortedAccounts = useMemo(() => {
-    let result = [...accountsWithMetrics];
+  // Filter accounts
+  const filteredAccounts = useMemo(() => {
+    let result = [...accounts];
 
     // Search filter
     if (searchQuery) {
@@ -202,40 +130,11 @@ function AccountsContent() {
       result = result.filter((account) => account.status === statusFilter);
     }
 
-    // Sort
-    const [sortField, sortOrder] = sortBy.split('_');
-    result.sort((a, b) => {
-      let comparison = 0;
-      switch (sortField) {
-        case 'name':
-          comparison = a.name.localeCompare(b.name);
-          break;
-        case 'spend':
-          comparison = a.metrics.spend - b.metrics.spend;
-          break;
-        case 'roas':
-          comparison = a.metrics.roas - b.metrics.roas;
-          break;
-        case 'cpa':
-          comparison = a.metrics.cpa - b.metrics.cpa;
-          break;
-        case 'updated':
-          comparison = 0; // TODO: Add updatedAt field
-          break;
-        default:
-          comparison = 0;
-      }
-      return sortOrder === 'desc' ? -comparison : comparison;
-    });
+    // Sort by name
+    result.sort((a, b) => a.name.localeCompare(b.name));
 
     return result;
-  }, [accountsWithMetrics, searchQuery, industryFilter, statusFilter, sortBy]);
-
-  const totalSpend = accountsWithMetrics.reduce((sum, a) => sum + a.metrics.spend, 0);
-  const avgRoas = accountsWithMetrics.length > 0
-    ? accountsWithMetrics.reduce((sum, a) => sum + a.metrics.roas, 0) / accountsWithMetrics.length
-    : 0;
-  const criticalCount = accountsWithMetrics.reduce((sum, a) => sum + a._count.insights, 0);
+  }, [accounts, searchQuery, industryFilter, statusFilter]);
 
   return (
     <div className="space-y-6">
@@ -247,7 +146,7 @@ function AccountsContent() {
         <div>
           <h1 className="text-3xl font-bold">광고 계정</h1>
           <p className="text-muted-foreground">
-            연동된 TikTok Ads 계정을 관리하고 성과를 확인하세요
+            계정을 선택하여 캠페인을 관리하세요
           </p>
         </div>
         <Button onClick={handleConnect} disabled={connecting}>
@@ -267,11 +166,6 @@ function AccountsContent() {
           onChange={setSearchQuery}
           placeholder="계정 또는 클라이언트 검색..."
         />
-        <SortDropdown
-          options={accountSortOptions}
-          value={sortBy}
-          onChange={setSortBy}
-        />
         <FilterDropdown
           label="업종"
           options={industryOptions}
@@ -286,47 +180,11 @@ function AccountsContent() {
         />
       </FilterBar>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>총 계정</CardDescription>
-            <CardTitle className="text-3xl">{accounts.length}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>총 지출 (7일)</CardDescription>
-            <CardTitle className="text-3xl">
-              {formatCurrency(totalSpend)}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>평균 ROAS</CardDescription>
-            <CardTitle className="text-3xl">
-              {avgRoas.toFixed(2)}x
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>읽지 않은 인사이트</CardDescription>
-            <CardTitle className="text-3xl text-destructive">
-              {criticalCount}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
       {/* Loading State */}
-      {(loading || loadingMetrics) && (
+      {loading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-          <span className="ml-2 text-muted-foreground">
-            {loading ? '계정 불러오는 중...' : '성과 데이터 불러오는 중...'}
-          </span>
+          <span className="ml-2 text-muted-foreground">계정 불러오는 중...</span>
         </div>
       )}
 
@@ -354,7 +212,7 @@ function AccountsContent() {
       {/* Account List */}
       {!loading && accounts.length > 0 && (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredAndSortedAccounts.length === 0 ? (
+          {filteredAccounts.length === 0 ? (
             <Card className="col-span-full p-8">
               <div className="text-center space-y-2">
                 <p className="text-muted-foreground">검색 결과가 없습니다</p>
@@ -372,9 +230,9 @@ function AccountsContent() {
               </div>
             </Card>
           ) : (
-          filteredAndSortedAccounts.map((account) => (
+          filteredAccounts.map((account) => (
             <Link key={account.id} href={`/accounts/${account.id}`}>
-              <Card className="hover:border-primary/50 transition-colors cursor-pointer">
+              <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
@@ -388,33 +246,23 @@ function AccountsContent() {
                         </CardDescription>
                       </div>
                     </div>
-                    {account._count.insights > 0 && (
-                      <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-800 text-xs font-medium">
-                        {account._count.insights} 인사이트
-                      </span>
-                    )}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div>
-                      <p className="text-sm text-muted-foreground">지출</p>
-                      <p className="font-semibold">
-                        {formatCurrency(account.metrics.spend)}
-                      </p>
-                      <ChangeIndicator value={account.metrics.change.spend} />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Megaphone className="h-4 w-4" />
+                      <span>캠페인 {account._count.campaigns}개</span>
                     </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">ROAS</p>
-                      <p className="font-semibold">{Number(account.metrics.roas).toFixed(2)}x</p>
-                      <ChangeIndicator value={account.metrics.change.roas} />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">CPA</p>
-                      <p className="font-semibold">
-                        {formatCurrency(account.metrics.cpa)}
-                      </p>
-                      <ChangeIndicator value={-account.metrics.change.cpa} />
+                    <div className="flex items-center gap-2">
+                      {account._count.insights > 0 && (
+                        <Badge variant="secondary" className="text-xs">
+                          {account._count.insights} 인사이트
+                        </Badge>
+                      )}
+                      <Badge variant={account.status === 'ACTIVE' ? 'default' : 'outline'}>
+                        {account.status === 'ACTIVE' ? '활성' : '비활성'}
+                      </Badge>
                     </div>
                   </div>
                 </CardContent>
