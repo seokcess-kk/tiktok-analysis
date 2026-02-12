@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
 
 export const dynamic = 'force-dynamic';
@@ -83,6 +84,27 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     });
 
+    // 캠페인별 소재 수 집계 (Campaign → AdGroup → Ad → Creative)
+    const campaignIds = campaigns.map((c) => c.id);
+    const creativeCountMap = new Map<string, number>();
+
+    if (campaignIds.length > 0) {
+      const creativeCounts = await prisma.$queryRaw<Array<{ campaignId: string; creativeCount: bigint }>>`
+        SELECT
+          ag."campaignId",
+          COUNT(DISTINCT a."creativeId") as "creativeCount"
+        FROM "Ad" a
+        INNER JOIN "AdGroup" ag ON a."adGroupId" = ag.id
+        WHERE ag."campaignId" IN (${Prisma.join(campaignIds)})
+          AND a."creativeId" IS NOT NULL
+        GROUP BY ag."campaignId"
+      `;
+
+      creativeCounts.forEach((row) => {
+        creativeCountMap.set(row.campaignId, Number(row.creativeCount));
+      });
+    }
+
     // 캠페인 데이터 가공
     const campaignsWithMetrics = campaigns.map((campaign) => {
       const metrics = metricsMap.get(campaign.id);
@@ -103,7 +125,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         status: campaign.status,
         objective: campaign.objective,
         budget: campaign.budget,
+        budgetMode: campaign.budgetMode,
         adGroupCount: campaign._count.adGroups,
+        creativeCount: creativeCountMap.get(campaign.id) || 0,
         metrics: {
           spend,
           impressions,

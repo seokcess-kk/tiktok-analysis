@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Megaphone, ChevronRight, RefreshCw, Layers } from 'lucide-react';
+import { Loader2, Megaphone, ChevronRight, RefreshCw, Layers, Image } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import { FilterBar, SearchInput, FilterDropdown } from '@/components/filters';
 
@@ -17,15 +17,18 @@ interface Campaign {
   objective: string;
   budget: number;
   budgetMode: string;
-  _count?: {
-    adGroups: number;
+  adGroupCount: number;
+  creativeCount: number;
+  metrics: {
+    spend: number;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    ctr: number;
+    cvr: number;
+    cpa: number;
+    roas: number;
   };
-}
-
-interface CampaignMetrics {
-  spend: number;
-  conversions: number;
-  roas: number;
 }
 
 const statusOptions = [
@@ -65,9 +68,7 @@ export default function CampaignListPage() {
   const accountId = params.accountId as string;
 
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
-  const [metricsMap, setMetricsMap] = useState<Record<string, CampaignMetrics>>({});
   const [loading, setLoading] = useState(true);
-  const [loadingMetrics, setLoadingMetrics] = useState(false);
   const [accountName, setAccountName] = useState('');
 
   // URL 기반 필터 상태
@@ -102,8 +103,6 @@ export default function CampaignListPage() {
         const data = await response.json();
         if (data.success && data.data?.campaigns) {
           setCampaigns(data.data.campaigns);
-          // 캠페인 메트릭 조회
-          fetchCampaignMetrics(data.data.campaigns);
         }
 
         // 계정 이름 조회
@@ -120,34 +119,6 @@ export default function CampaignListPage() {
     };
     fetchCampaigns();
   }, [accountId]);
-
-  // 캠페인별 메트릭 조회
-  const fetchCampaignMetrics = async (campaignList: Campaign[]) => {
-    setLoadingMetrics(true);
-    const newMetrics: Record<string, CampaignMetrics> = {};
-
-    await Promise.all(
-      campaignList.map(async (campaign) => {
-        try {
-          const res = await fetch(`/api/accounts/${accountId}/campaigns/${campaign.id}/metrics?days=7`);
-          const data = await res.json();
-          if (data.success && data.data) {
-            newMetrics[campaign.id] = {
-              spend: data.data.totals?.spend || 0,
-              conversions: data.data.totals?.conversions || 0,
-              roas: data.data.averages?.roas || 0,
-            };
-          }
-        } catch (error) {
-          console.error(`Failed to fetch metrics for campaign ${campaign.id}:`, error);
-          newMetrics[campaign.id] = { spend: 0, conversions: 0, roas: 0 };
-        }
-      })
-    );
-
-    setMetricsMap(newMetrics);
-    setLoadingMetrics(false);
-  };
 
   // 필터링된 캠페인 목록
   const filteredCampaigns = useMemo(() => {
@@ -182,7 +153,6 @@ export default function CampaignListPage() {
       .then((data) => {
         if (data.success && data.data?.campaigns) {
           setCampaigns(data.data.campaigns);
-          fetchCampaignMetrics(data.data.campaigns);
         }
       })
       .finally(() => setLoading(false));
@@ -276,54 +246,53 @@ export default function CampaignListPage() {
               </div>
             </Card>
           ) : (
-            filteredCampaigns.map((campaign) => {
-              const metrics = metricsMap[campaign.id] || { spend: 0, conversions: 0, roas: 0 };
-              return (
-                <Link key={campaign.id} href={`/accounts/${accountId}/campaigns/${campaign.id}`}>
-                  <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-base truncate">{campaign.name}</CardTitle>
-                          <CardDescription className="mt-1">
-                            {objectiveLabels[campaign.objective] || campaign.objective} · 예산 {formatCurrency(campaign.budget)}/{campaign.budgetMode === 'DAILY' ? '일' : '총'}
-                          </CardDescription>
-                        </div>
-                        <Badge variant={campaign.status === 'ENABLE' ? 'default' : 'secondary'}>
-                          {statusLabels[campaign.status] || campaign.status}
-                        </Badge>
+            filteredCampaigns.map((campaign) => (
+              <Link key={campaign.id} href={`/accounts/${accountId}/campaigns/${campaign.id}`}>
+                <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="text-base truncate">{campaign.name}</CardTitle>
+                        <CardDescription className="mt-1">
+                          {objectiveLabels[campaign.objective] || campaign.objective} · 예산 {formatCurrency(campaign.budget)}/{campaign.budgetMode === 'DAILY' ? '일' : '총'}
+                        </CardDescription>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="grid grid-cols-3 gap-3 text-sm mb-3">
-                        <div>
-                          <p className="text-muted-foreground text-xs">지출</p>
-                          <p className="font-semibold">
-                            {loadingMetrics ? '...' : formatCurrency(metrics.spend)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground text-xs">전환</p>
-                          <p className="font-semibold">
-                            {loadingMetrics ? '...' : metrics.conversions}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground text-xs">ROAS</p>
-                          <p className="font-semibold">
-                            {loadingMetrics ? '...' : `${metrics.roas.toFixed(2)}x`}
-                          </p>
-                        </div>
+                      <Badge variant={campaign.status === 'ENABLE' ? 'default' : 'secondary'}>
+                        {statusLabels[campaign.status] || campaign.status}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-3 gap-3 text-sm mb-3">
+                      <div>
+                        <p className="text-muted-foreground text-xs">지출</p>
+                        <p className="font-semibold">
+                          {formatCurrency(campaign.metrics.spend)}
+                        </p>
                       </div>
-                      <div className="flex items-center text-xs text-muted-foreground">
+                      <div>
+                        <p className="text-muted-foreground text-xs">전환</p>
+                        <p className="font-semibold">{campaign.metrics.conversions}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground text-xs">ROAS</p>
+                        <p className="font-semibold">{campaign.metrics.roas.toFixed(2)}x</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                      <div className="flex items-center">
                         <Layers className="h-3 w-3 mr-1" />
-                        광고그룹 {campaign._count?.adGroups || 0}개
+                        광고그룹 {campaign.adGroupCount}개
                       </div>
-                    </CardContent>
-                  </Card>
-                </Link>
-              );
-            })
+                      <div className="flex items-center">
+                        <Image className="h-3 w-3 mr-1" />
+                        소재 {campaign.creativeCount}개
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))
           )}
         </div>
       )}
