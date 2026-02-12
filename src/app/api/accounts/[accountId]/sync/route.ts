@@ -153,6 +153,15 @@ export async function POST(
     // ─────────────────────────────────────────
     let syncedMetricsCount = 0;
     let syncedAdGroupMetricsCount = 0;
+    let syncedAdMetricsCount = 0;
+
+    // TikTok Ad ID → 내부 Ad ID 매핑
+    const adIdMap = new Map<string, string>();
+    const adAdGroupMap = new Map<string, string>(); // adId -> adGroupId
+    syncedAds.forEach(ad => {
+      adIdMap.set(ad.tiktokAdId, ad.id);
+      adAdGroupMap.set(ad.id, ad.adGroupId);
+    });
 
     if (syncMetrics && syncedCampaigns.length > 0) {
       const endDate = new Date();
@@ -298,6 +307,82 @@ export async function POST(
           syncedAdGroupMetricsCount++;
         }
       }
+
+      // 4-3. 광고 레벨 성과 데이터
+      if (syncedAds.length > 0) {
+        const adMetrics = await client.getPerformanceMetrics(
+          formatDate(startDate),
+          formatDate(endDate),
+          'AD'
+        );
+
+        for (const metric of adMetrics) {
+          if (!metric.ad_id) continue;
+
+          const internalAdId = adIdMap.get(metric.ad_id);
+          if (!internalAdId) continue;
+
+          // 광고의 광고그룹 ID 찾기
+          const adGroupId = adAdGroupMap.get(internalAdId);
+          if (!adGroupId) continue;
+
+          // 광고그룹의 캠페인 ID 찾기
+          const adGroup = syncedAdGroups.find(ag => ag.id === adGroupId);
+          if (!adGroup) continue;
+
+          const metricDate = new Date(metric.date);
+
+          const existingMetric = await prisma.performanceMetric.findFirst({
+            where: {
+              accountId: account.id,
+              adId: internalAdId,
+              date: metricDate,
+              level: 'AD',
+              creativeId: null,
+            },
+          });
+
+          if (existingMetric) {
+            await prisma.performanceMetric.update({
+              where: { id: existingMetric.id },
+              data: {
+                spend: metric.spend,
+                impressions: metric.impressions,
+                clicks: metric.clicks,
+                conversions: metric.conversions,
+                ctr: metric.ctr,
+                cpc: metric.cpc,
+                cpm: metric.cpm,
+                cvr: metric.cvr,
+                cpa: metric.cpa,
+                roas: metric.roas,
+              },
+            });
+          } else {
+            await prisma.performanceMetric.create({
+              data: {
+                accountId: account.id,
+                campaignId: adGroup.campaignId,
+                adGroupId: adGroupId,
+                adId: internalAdId,
+                date: metricDate,
+                level: 'AD',
+                spend: metric.spend,
+                impressions: metric.impressions,
+                clicks: metric.clicks,
+                conversions: metric.conversions,
+                ctr: metric.ctr,
+                cpc: metric.cpc,
+                cpm: metric.cpm,
+                cvr: metric.cvr,
+                cpa: metric.cpa,
+                roas: metric.roas,
+              },
+            });
+          }
+          syncedAdMetricsCount++;
+        }
+      }
     }
 
     // 계정 마지막 동기화 시간 업데이트
@@ -312,14 +397,16 @@ export async function POST(
         syncedCampaigns: syncedCampaigns.length,
         syncedAdGroups: syncedAdGroups.length,
         syncedAds: syncedAds.length,
-        syncedMetrics: syncedMetricsCount,
-        syncedAdGroupMetrics: syncedAdGroupMetricsCount,
         summary: {
           campaigns: syncedCampaigns.length,
           adGroups: syncedAdGroups.length,
           ads: syncedAds.length,
-          campaignMetrics: syncedMetricsCount,
-          adGroupMetrics: syncedAdGroupMetricsCount,
+          metrics: {
+            campaign: syncedMetricsCount,
+            adGroup: syncedAdGroupMetricsCount,
+            ad: syncedAdMetricsCount,
+            total: syncedMetricsCount + syncedAdGroupMetricsCount + syncedAdMetricsCount,
+          },
         },
       },
     });
