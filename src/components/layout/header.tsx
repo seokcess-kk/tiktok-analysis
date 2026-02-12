@@ -15,6 +15,7 @@ import { User, LogOut, Settings } from 'lucide-react';
 import { MobileSidebar } from './mobile-sidebar';
 import { NotificationBell } from './notification-bell';
 import { CommandMenu } from '@/components/common/command-menu';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface HeaderProps {
   title?: string;
@@ -37,6 +38,9 @@ export function Header({ title, accountId }: HeaderProps) {
       <div className="flex items-center gap-4">
         {/* Global Search */}
         <CommandMenu accountId={accountId} />
+
+        {/* Theme Toggle */}
+        <ThemeToggle />
 
         {/* Notifications */}
         <NotificationBell userId={(session?.user as { id?: string })?.id} />
