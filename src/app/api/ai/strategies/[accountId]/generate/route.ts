@@ -235,12 +235,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('Error generating strategies:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to generate strategies',
+          message: `Failed to generate strategies: ${errorMessage}`,
         },
       },
       { status: 500 }

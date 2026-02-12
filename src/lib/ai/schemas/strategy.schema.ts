@@ -1,13 +1,26 @@
 import { z } from 'zod';
 
+// AI가 숫자 또는 문자열로 반환할 수 있으므로 모두 허용하고 문자열로 변환
+const stringOrNumber = z.union([z.string(), z.number()]).transform((val) => String(val));
+
 export const ActionItemSchema = z.object({
   action: z.string(),
   target: z.string(),
   targetId: z.string(),
-  currentValue: z.string().optional(),
-  suggestedValue: z.string(),
+  currentValue: stringOrNumber.optional(),
+  suggestedValue: stringOrNumber,
   reason: z.string(),
 });
+
+// 변환 후 출력 타입 (문자열로 변환됨)
+export type ActionItem = {
+  action: string;
+  target: string;
+  targetId: string;
+  currentValue?: string;
+  suggestedValue: string;
+  reason: string;
+};
 
 export const ExpectedImpactSchema = z.object({
   metric: z.string(),
@@ -32,6 +45,22 @@ export const StrategiesResponseSchema = z.object({
   strategies: z.array(StrategySchema),
 });
 
-export type Strategy = z.infer<typeof StrategySchema>;
-export type ActionItem = z.infer<typeof ActionItemSchema>;
-export type ExpectedImpact = z.infer<typeof ExpectedImpactSchema>;
+// z.infer 대신 명시적 타입 정의 (transform 후 출력 타입)
+export type ExpectedImpact = {
+  metric: string;
+  currentValue: number;
+  expectedValue: number;
+  changePercent: number;
+  confidence: number;
+};
+
+export type Strategy = {
+  type: 'BUDGET' | 'CAMPAIGN' | 'TARGETING' | 'CREATIVE' | 'BIDDING';
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  title: string;
+  description: string;
+  actionItems: ActionItem[];
+  expectedImpact: ExpectedImpact;
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  estimatedEffort: string;
+};

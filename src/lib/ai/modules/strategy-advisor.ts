@@ -164,7 +164,7 @@ export async function generateBudgetStrategy(
     { temperature: 0.4 }
   );
 
-  return result.strategies;
+  return result.strategies as Strategy[];
 }
 
 /**
@@ -192,7 +192,7 @@ export async function generateCreativeStrategy(
     { temperature: 0.5 }
   );
 
-  return result.strategies;
+  return result.strategies as Strategy[];
 }
 
 /**
@@ -266,7 +266,7 @@ ${JSON.stringify(
     { temperature: 0.4 }
   );
 
-  return result.strategies;
+  return result.strategies as Strategy[];
 }
 
 /**
@@ -326,11 +326,12 @@ ${JSON.stringify(
     { temperature: 0.4 }
   );
 
-  return result.strategies;
+  return result.strategies as Strategy[];
 }
 
 /**
  * 종합 전략 생성 (모든 유형)
+ * Promise.allSettled를 사용하여 일부 실패해도 나머지 결과를 반환
  */
 export async function generateComprehensiveStrategies(
   context: StrategyContext
@@ -341,12 +342,26 @@ export async function generateComprehensiveStrategies(
   bidding: Strategy[];
   all: Strategy[];
 }> {
-  const [budget, creative, targeting, bidding] = await Promise.all([
+  const results = await Promise.allSettled([
     generateBudgetStrategy(context),
     generateCreativeStrategy(context),
     generateTargetingStrategy(context),
     generateBiddingStrategy(context),
   ]);
+
+  // 성공한 결과만 추출, 실패한 경우 빈 배열 반환
+  const budget = results[0].status === 'fulfilled' ? results[0].value : [];
+  const creative = results[1].status === 'fulfilled' ? results[1].value : [];
+  const targeting = results[2].status === 'fulfilled' ? results[2].value : [];
+  const bidding = results[3].status === 'fulfilled' ? results[3].value : [];
+
+  // 실패한 전략이 있으면 로깅
+  results.forEach((result, index) => {
+    if (result.status === 'rejected') {
+      const types = ['budget', 'creative', 'targeting', 'bidding'];
+      console.error(`Failed to generate ${types[index]} strategy:`, result.reason);
+    }
+  });
 
   // 전체 전략을 우선순위로 정렬
   const all = [...budget, ...creative, ...targeting, ...bidding].sort((a, b) => {
@@ -423,7 +438,7 @@ ${JSON.stringify(
     { temperature: 0.4 }
   );
 
-  return result.strategies;
+  return result.strategies as Strategy[];
 }
 
 /**

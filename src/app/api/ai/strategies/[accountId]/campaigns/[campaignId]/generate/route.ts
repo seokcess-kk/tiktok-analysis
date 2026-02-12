@@ -224,13 +224,22 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     // 전략 생성
     let strategies;
-    if (type === 'BUDGET') {
-      strategies = await generateBudgetStrategy(context);
-    } else if (type === 'CREATIVE') {
-      strategies = await generateCreativeStrategy(context);
-    } else {
-      const result = await generateComprehensiveStrategies(context);
-      strategies = result.all;
+    console.log('[Campaign Strategy] Generating strategy type:', type || 'COMPREHENSIVE');
+    console.log('[Campaign Strategy] Context campaigns count:', context.campaigns.length);
+    console.log('[Campaign Strategy] Context creatives count:', context.creatives.length);
+
+    try {
+      if (type === 'BUDGET') {
+        strategies = await generateBudgetStrategy(context);
+      } else if (type === 'CREATIVE') {
+        strategies = await generateCreativeStrategy(context);
+      } else {
+        const result = await generateComprehensiveStrategies(context);
+        strategies = result.all;
+      }
+    } catch (strategyError) {
+      console.error('[Campaign Strategy] Strategy generation failed:', strategyError);
+      throw strategyError;
     }
 
     // DB에 저장
@@ -285,12 +294,13 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('Error generating campaign strategies:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       {
         success: false,
         error: {
           code: 'INTERNAL_ERROR',
-          message: 'Failed to generate campaign strategies',
+          message: `Failed to generate campaign strategies: ${errorMessage}`,
         },
       },
       { status: 500 }

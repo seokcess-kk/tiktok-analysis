@@ -100,9 +100,11 @@ export async function generateCompletion<T>(
       console.log('[AI Client] Response parsed and validated successfully');
       return validated;
     } catch (error) {
-      console.error('[AI Client] Response parsing error:', error);
+      // Zod 에러 객체를 안전하게 로깅
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error('[AI Client] Response parsing error:', errorMessage);
       console.error('[AI Client] Raw content:', content.substring(0, 500));
-      throw new Error('Failed to parse AI response');
+      throw new Error(`Failed to parse AI response: ${errorMessage}`);
     }
   }, retries);
 }
