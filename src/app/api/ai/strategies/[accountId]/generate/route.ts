@@ -18,8 +18,17 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { accountId } = params;
-    const body = await request.json();
-    const { type, insightId, constraints } = body;
+    let type: string | undefined;
+    let insightId: string | undefined;
+    let constraints: Record<string, unknown> | undefined;
+    try {
+      const body = await request.json();
+      type = body.type;
+      insightId = body.insightId;
+      constraints = body.constraints;
+    } catch {
+      // Body is empty or invalid, use defaults
+    }
 
     // 계정 조회
     const account = await prisma.account.findUnique({

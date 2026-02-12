@@ -15,8 +15,13 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { accountId, campaignId } = params;
-    const body = await request.json();
-    const { type = 'DAILY_SUMMARY' } = body;
+    let type = 'DAILY_SUMMARY';
+    try {
+      const body = await request.json();
+      type = body.type || 'DAILY_SUMMARY';
+    } catch {
+      // Body is empty or invalid, use default
+    }
 
     // 캠페인 조회
     const campaign = await prisma.campaign.findFirst({

@@ -9,8 +9,13 @@ export async function POST(
   { params }: { params: { accountId: string } }
 ) {
   try {
-    const body = await request.json();
-    const { type = 'DAILY_SUMMARY' } = body;
+    let type = 'DAILY_SUMMARY';
+    try {
+      const body = await request.json();
+      type = body.type || 'DAILY_SUMMARY';
+    } catch {
+      // Body is empty or invalid, use default
+    }
 
     // Get account with client info
     const account = await prisma.account.findUnique({
