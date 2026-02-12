@@ -42,12 +42,11 @@
     }
   ],
   "currentPDCA": {
-    "feature": "auto-insight-generation",
-    "phase": "completed",
-    "startedAt": "2026-02-11T18:00:00.000Z",
-    "completedAt": "2026-02-11T20:00:00.000Z",
-    "previousFeature": "hidden-features-fix",
-    "matchRate": 100,
+    "feature": "real-data-integration",
+    "phase": "do",
+    "startedAt": "2026-02-12T07:00:00.000Z",
+    "previousFeature": "auto-insight-generation",
+    "matchRate": null,
     "iterationCount": 0
   }
 }

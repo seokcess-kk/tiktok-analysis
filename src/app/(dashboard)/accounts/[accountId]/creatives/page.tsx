@@ -7,184 +7,21 @@ import { CreativeTable } from '@/components/creatives/creative-table';
 import { FatigueChart, FatigueGauge } from '@/components/creatives/fatigue-chart';
 import { ScoreBreakdown, GradeDistribution } from '@/components/creatives/score-breakdown';
 
-// Fallback mock data for demonstration
-const mockCreatives = [
-  {
-    id: '1',
-    tiktokCreativeId: 'creative_001_summer_sale',
-    type: 'VIDEO' as const,
-    thumbnailUrl: null,
-    duration: 15,
-    tags: ['세일', '여름', '할인'],
-    metrics: {
-      spend: 1250000,
-      impressions: 850000,
-      clicks: 12500,
-      conversions: 380,
-      ctr: 1.47,
-      cvr: 3.04,
-      cpc: 100,
-      cpm: 1471,
-      cpa: 3289,
-      roas: 2.8,
-    },
-    score: {
-      overall: 85,
-      breakdown: { efficiency: 88, scale: 82, sustainability: 85, engagement: 80 },
-      grade: 'A' as const,
-      percentile: 92,
-    },
-    fatigue: {
-      index: 25,
-      trend: 'STABLE' as const,
-      daysActive: 12,
-      recommendedAction: null,
-    },
-  },
-  {
-    id: '2',
-    tiktokCreativeId: 'creative_002_product_demo',
-    type: 'VIDEO' as const,
-    thumbnailUrl: null,
-    duration: 30,
-    tags: ['제품', '데모', '튜토리얼'],
-    metrics: {
-      spend: 980000,
-      impressions: 620000,
-      clicks: 8200,
-      conversions: 210,
-      ctr: 1.32,
-      cvr: 2.56,
-      cpc: 120,
-      cpm: 1581,
-      cpa: 4667,
-      roas: 2.1,
-    },
-    score: {
-      overall: 72,
-      breakdown: { efficiency: 70, scale: 68, sustainability: 75, engagement: 78 },
-      grade: 'B' as const,
-      percentile: 75,
-    },
-    fatigue: {
-      index: 45,
-      trend: 'DECLINING' as const,
-      daysActive: 21,
-      recommendedAction: '대체 소재 준비 권장',
-    },
-  },
-  {
-    id: '3',
-    tiktokCreativeId: 'creative_003_testimonial',
-    type: 'VIDEO' as const,
-    thumbnailUrl: null,
-    duration: 20,
-    tags: ['후기', '고객', 'UGC'],
-    metrics: {
-      spend: 450000,
-      impressions: 280000,
-      clicks: 5600,
-      conversions: 195,
-      ctr: 2.0,
-      cvr: 3.48,
-      cpc: 80,
-      cpm: 1607,
-      cpa: 2308,
-      roas: 3.5,
-    },
-    score: {
-      overall: 91,
-      breakdown: { efficiency: 95, scale: 72, sustainability: 92, engagement: 88 },
-      grade: 'S' as const,
-      percentile: 98,
-    },
-    fatigue: {
-      index: 15,
-      trend: 'RISING' as const,
-      daysActive: 7,
-      recommendedAction: null,
-    },
-  },
-  {
-    id: '4',
-    tiktokCreativeId: 'creative_004_brand_story',
-    type: 'VIDEO' as const,
-    thumbnailUrl: null,
-    duration: 45,
-    tags: ['브랜드', '스토리', '감성'],
-    metrics: {
-      spend: 750000,
-      impressions: 520000,
-      clicks: 4200,
-      conversions: 85,
-      ctr: 0.81,
-      cvr: 2.02,
-      cpc: 179,
-      cpm: 1442,
-      cpa: 8824,
-      roas: 1.2,
-    },
-    score: {
-      overall: 48,
-      breakdown: { efficiency: 42, scale: 55, sustainability: 60, engagement: 45 },
-      grade: 'D' as const,
-      percentile: 25,
-    },
-    fatigue: {
-      index: 72,
-      trend: 'EXHAUSTED' as const,
-      daysActive: 35,
-      recommendedAction: '즉시 교체 필요',
-    },
-  },
-  {
-    id: '5',
-    tiktokCreativeId: 'creative_005_flash_sale',
-    type: 'IMAGE' as const,
-    thumbnailUrl: null,
-    duration: null,
-    tags: ['플래시', '세일', '긴급'],
-    metrics: {
-      spend: 320000,
-      impressions: 410000,
-      clicks: 6150,
-      conversions: 145,
-      ctr: 1.5,
-      cvr: 2.36,
-      cpc: 52,
-      cpm: 780,
-      cpa: 2207,
-      roas: 2.9,
-    },
-    score: {
-      overall: 78,
-      breakdown: { efficiency: 82, scale: 70, sustainability: 80, engagement: 50 },
-      grade: 'B' as const,
-      percentile: 80,
-    },
-    fatigue: {
-      index: 38,
-      trend: 'STABLE' as const,
-      daysActive: 14,
-      recommendedAction: null,
-    },
-  },
-];
-
-const mockFatigueOverview = {
-  healthyCount: 3,
-  warningCount: 1,
+// 빈 초기 상태
+const emptyFatigueOverview = {
+  healthyCount: 0,
+  warningCount: 0,
   criticalCount: 0,
-  exhaustedCount: 1,
-  avgLifespan: 18,
+  exhaustedCount: 0,
+  avgLifespan: 0,
 };
 
-const mockGradeDistribution = {
-  S: 1,
-  A: 1,
-  B: 2,
+const emptyGradeDistribution = {
+  S: 0,
+  A: 0,
+  B: 0,
   C: 0,
-  D: 1,
+  D: 0,
   F: 0,
 };
 
@@ -200,9 +37,9 @@ export default function CreativesPage() {
   const [sortBy, setSortBy] = useState<SortOption>('score');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [selectedCreative, setSelectedCreative] = useState<string | null>(null);
-  const [creatives, setCreatives] = useState<any[]>(mockCreatives);
-  const [fatigueOverview, setFatigueOverview] = useState(mockFatigueOverview);
-  const [gradeDistribution, setGradeDistribution] = useState(mockGradeDistribution);
+  const [creatives, setCreatives] = useState<any[]>([]);
+  const [fatigueOverview, setFatigueOverview] = useState(emptyFatigueOverview);
+  const [gradeDistribution, setGradeDistribution] = useState(emptyGradeDistribution);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -252,19 +89,19 @@ export default function CreativesPage() {
                 setCreatives(retryResult.data.creatives);
                 setError(null);
               } else {
-                setCreatives(mockCreatives);
-                setError('동기화 후에도 데이터가 없습니다. Mock 데이터를 표시합니다.');
+                setCreatives([]);
+                setError(null); // 빈 상태 UI로 처리
               }
             } else {
-              setCreatives(mockCreatives);
-              setError('동기화 실패. Mock 데이터를 표시합니다.');
+              setCreatives([]);
+              setError('동기화에 실패했습니다. 다시 시도해주세요.');
             }
           } else {
             setCreatives(result.data.creatives);
 
             // Update summary data if available
             if (result.data.summary) {
-              setGradeDistribution(result.data.summary.gradeDistribution || mockGradeDistribution);
+              setGradeDistribution(result.data.summary.gradeDistribution || emptyGradeDistribution);
 
               // Calculate fatigue overview from creatives
               const creativesData = result.data.creatives || [];
@@ -283,9 +120,8 @@ export default function CreativesPage() {
           }
         } else {
           console.warn('API returned unsuccessful response');
-          setError('API 응답이 올바르지 않습니다. 동기화를 시도합니다...');
-          await syncCreatives();
-          setCreatives(mockCreatives);
+          setError('API 응답이 올바르지 않습니다.');
+          setCreatives([]);
         }
       } catch (err) {
         console.error('Failed to fetch creatives:', err);

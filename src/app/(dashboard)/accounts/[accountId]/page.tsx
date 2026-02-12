@@ -20,7 +20,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RefreshCw, AlertTriangle, LayoutGrid, LineChart } from 'lucide-react';
 import { DateRangePicker } from '@/components/filters';
 import { useDateRangeUrlState, useUrlState } from '@/hooks';
-import { DashboardSkeleton } from '@/components/common';
+import { DashboardSkeleton, NoDataFound, ErrorState } from '@/components/common';
 import { Label } from '@/components/ui/label';
 import { SetupGuide } from '@/components/onboarding/setup-guide';
 import type { DateRange } from 'react-day-picker';
@@ -59,95 +59,16 @@ interface DashboardData {
   strategies: PendingStrategy[];
 }
 
-// Mock data for development
-const mockDashboardData: DashboardData = {
-  account: {
-    id: '1',
-    name: '브랜드 A',
-    clientName: '클라이언트 A · 이커머스',
-  },
+// 기본 빈 대시보드 데이터 (초기 상태용)
+const emptyDashboardData: DashboardData = {
+  account: { id: '', name: '', clientName: '' },
   kpis: {
-    current: {
-      spend: 15000000,
-      impressions: 5200000,
-      clicks: 156000,
-      conversions: 1250,
-      ctr: 3.0,
-      cvr: 0.8,
-      cpa: 12000,
-      roas: 3.2,
-    },
-    previous: {
-      spend: 14250000,
-      impressions: 4810000,
-      clicks: 139000,
-      conversions: 1277,
-      ctr: 2.89,
-      cvr: 0.88,
-      cpa: 11160,
-      roas: 3.27,
-    },
+    current: { spend: 0, impressions: 0, clicks: 0, conversions: 0, ctr: 0, cvr: 0, cpa: 0, roas: 0 },
+    previous: { spend: 0, impressions: 0, clicks: 0, conversions: 0, ctr: 0, cvr: 0, cpa: 0, roas: 0 },
   },
-  chartData: Array.from({ length: 14 }, (_, i) => ({
-    date: new Date(Date.now() - (13 - i) * 24 * 60 * 60 * 1000).toISOString(),
-    spend: 1000000 + Math.random() * 500000,
-    impressions: 350000 + Math.random() * 100000,
-    clicks: 10000 + Math.random() * 5000,
-    conversions: 80 + Math.random() * 40,
-    ctr: 2.5 + Math.random() * 1,
-    cvr: 0.6 + Math.random() * 0.4,
-    cpa: 10000 + Math.random() * 5000,
-    roas: 2.5 + Math.random() * 1.5,
-  })),
-  insights: [
-    {
-      id: '1',
-      type: 'ANOMALY',
-      severity: 'CRITICAL',
-      title: 'CPA 급등 감지',
-      summary: '어제 대비 CPA가 32% 상승했습니다. 주요 원인은 소재 피로도 증가로 추정됩니다.',
-      createdAt: new Date().toISOString(),
-      isRead: false,
-    },
-    {
-      id: '2',
-      type: 'TREND',
-      severity: 'HIGH',
-      title: '전환율 하락 추세',
-      summary: '최근 7일간 전환율이 지속적으로 하락하고 있습니다. 타겟팅 점검이 필요합니다.',
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-      isRead: false,
-    },
-    {
-      id: '3',
-      type: 'CREATIVE',
-      severity: 'INFO',
-      title: '고성과 소재 발견',
-      summary: '"제품 리뷰 UGC" 소재가 평균 대비 2.5배 높은 전환율을 보이고 있습니다.',
-      createdAt: new Date(Date.now() - 7200000).toISOString(),
-      isRead: true,
-    },
-  ],
-  strategies: [
-    {
-      id: '1',
-      type: 'BUDGET',
-      priority: 'HIGH',
-      title: '캠페인 A 예산 증액 권장',
-      description: 'ROAS가 목표 대비 20% 높은 캠페인입니다. 예산 증액으로 더 많은 전환을 확보할 수 있습니다.',
-      expectedImpact: { metric: 'ROAS', changePercent: 15 },
-      createdAt: new Date().toISOString(),
-    },
-    {
-      id: '2',
-      type: 'CREATIVE',
-      priority: 'MEDIUM',
-      title: '소재 3개 교체 필요',
-      description: '피로도가 80% 이상인 소재를 신규 소재로 교체하여 성과를 개선할 수 있습니다.',
-      expectedImpact: { metric: 'CPA', changePercent: -20 },
-      createdAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-  ],
+  chartData: [],
+  insights: [],
+  strategies: [],
 };
 
 export default function DashboardPage() {
@@ -211,7 +132,7 @@ export default function DashboardPage() {
         fetch(`/api/accounts/${accountId}/campaigns?limit=1`), // 캠페인 수만 확인
       ]);
 
-      let dashboardData = { ...mockDashboardData };
+      let dashboardData = { ...emptyDashboardData };
 
       // 현재 기간 메트릭 데이터 처리
       if (currentMetricsRes.status === 'fulfilled' && currentMetricsRes.value.ok) {
@@ -312,8 +233,7 @@ export default function DashboardPage() {
       setData(dashboardData);
     } catch (err) {
       console.error('Dashboard fetch error:', err);
-      // 에러 시에도 mock 데이터 표시
-      setData(mockDashboardData);
+      setError('데이터를 불러오는데 실패했습니다. 잠시 후 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
@@ -437,9 +357,12 @@ export default function DashboardPage() {
 
   if (error && !data) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[400px]">
-        <p className="text-red-500 mb-4">{error}</p>
-        <Button onClick={fetchDashboardData}>다시 시도</Button>
+      <div className="min-h-[400px] flex items-center justify-center">
+        <ErrorState
+          title="데이터를 불러올 수 없습니다"
+          description={error}
+          onRetry={fetchDashboardData}
+        />
       </div>
     );
   }

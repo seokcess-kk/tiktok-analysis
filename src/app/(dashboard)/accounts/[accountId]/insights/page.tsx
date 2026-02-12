@@ -6,187 +6,40 @@ import { InsightCard, InsightList } from '@/components/ai/insight-card';
 import { AnomalyAlert, AnomalyBanner, AnomalySummary } from '@/components/ai/anomaly-alert';
 import { cn } from '@/lib/utils';
 
-// Fallback mock data
-const mockInsights = [
-  {
-    id: '1',
-    type: 'ANOMALY' as const,
-    severity: 'CRITICAL' as const,
-    title: 'CPA 급등 감지 - 즉시 확인 필요',
-    summary:
-      '지난 24시간 동안 CPA가 45% 급등했습니다. 주요 원인으로 캠페인 "Summer Sale 2026"의 전환율 급락이 확인되었습니다.',
-    keyFindings: [
-      {
-        finding: '캠페인 "Summer Sale 2026" 전환율 급락',
-        impact: 'NEGATIVE' as const,
-        metric: 'CVR',
-        change: -38,
-      },
-      {
-        finding: '클릭수는 유지되나 전환 감소',
-        impact: 'NEGATIVE' as const,
-        metric: 'Conversions',
-        change: -42,
-      },
-      {
-        finding: '랜딩페이지 로딩 속도 저하 의심',
-        impact: 'NEGATIVE' as const,
-        metric: 'Bounce Rate',
-        change: 25,
-      },
-    ],
-    recommendations: [
-      '랜딩페이지 서버 상태 및 로딩 속도 점검',
-      '전환 추적 픽셀 정상 작동 여부 확인',
-      '캠페인 예산 일시 감액 검토',
-    ],
-    generatedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-    isRead: false,
-    linkedStrategiesCount: 2,
-  },
-  {
-    id: '2',
-    type: 'DAILY_SUMMARY' as const,
-    severity: 'INFO' as const,
-    title: '일간 성과 요약 - 2026년 2월 5일',
-    summary:
-      '전일 대비 전체 성과가 소폭 상승했습니다. 특히 신규 소재 "Product Demo v3"가 높은 CTR을 기록하며 성과를 견인했습니다.',
-    keyFindings: [
-      {
-        finding: '전체 ROAS 상승',
-        impact: 'POSITIVE' as const,
-        metric: 'ROAS',
-        change: 12,
-      },
-      {
-        finding: '신규 소재 성과 우수',
-        impact: 'POSITIVE' as const,
-        metric: 'CTR',
-        change: 35,
-      },
-      {
-        finding: '예산 효율 개선',
-        impact: 'POSITIVE' as const,
-        metric: 'CPA',
-        change: -8,
-      },
-    ],
-    recommendations: [
-      '고성과 소재 "Product Demo v3" 예산 증액 검토',
-      '저성과 캠페인 "Brand Awareness" 최적화 필요',
-    ],
-    generatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    isRead: true,
-    linkedStrategiesCount: 3,
-  },
-  {
-    id: '3',
-    type: 'CREATIVE' as const,
-    severity: 'WARNING' as const,
-    title: '소재 피로도 경고 - 3개 소재 교체 권장',
-    summary:
-      '현재 활성 소재 중 3개가 피로도 70% 이상으로 교체가 필요합니다. 성과 하락 전 신규 소재 준비를 권장합니다.',
-    keyFindings: [
-      {
-        finding: 'creative_001 피로도 높음',
-        impact: 'NEGATIVE' as const,
-        metric: 'Fatigue Index',
-        change: 78,
-      },
-      {
-        finding: 'creative_004 성과 급락 중',
-        impact: 'NEGATIVE' as const,
-        metric: 'CTR',
-        change: -25,
-      },
-    ],
-    recommendations: [
-      '신규 소재 제작 착수 (예상 소요: 3-5일)',
-      '피로도 높은 소재 예산 점진적 감액',
-    ],
-    generatedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(),
-    isRead: false,
-    linkedStrategiesCount: 1,
-  },
-  {
-    id: '4',
-    type: 'TREND' as const,
-    severity: 'INFO' as const,
-    title: '주간 트렌드 분석 - 전환율 상승세',
-    summary:
-      '지난 7일간 전반적인 전환율이 상승 추세를 보이고 있습니다. 특히 18-24세 연령대에서 두드러진 성과 개선이 확인됩니다.',
-    keyFindings: [
-      {
-        finding: '18-24세 타겟 전환율 상승',
-        impact: 'POSITIVE' as const,
-        metric: 'CVR',
-        change: 18,
-      },
-      {
-        finding: '주말 성과 개선',
-        impact: 'POSITIVE' as const,
-        metric: 'ROAS',
-        change: 22,
-      },
-    ],
-    recommendations: [
-      '18-24세 타겟 예산 증액 검토',
-      '주말 집중 캠페인 운영 고려',
-    ],
-    generatedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-    isRead: true,
-    linkedStrategiesCount: 0,
-  },
-  {
-    id: '5',
-    type: 'PREDICTION' as const,
-    severity: 'WARNING' as const,
-    title: '예측: 다음 주 CPA 상승 예상',
-    summary:
-      '현재 트렌드와 계절성을 분석한 결과, 다음 주 CPA가 15-20% 상승할 것으로 예측됩니다. 선제적 대응을 권장합니다.',
-    keyFindings: [
-      {
-        finding: '경쟁 강도 증가 예상',
-        impact: 'NEGATIVE' as const,
-        metric: 'Competition',
-        change: 20,
-      },
-      {
-        finding: '소재 피로도 누적',
-        impact: 'NEGATIVE' as const,
-        metric: 'Creative Health',
-        change: -15,
-      },
-    ],
-    recommendations: [
-      '신규 소재 사전 준비',
-      '입찰 전략 조정 검토',
-      '예산 버퍼 확보',
-    ],
-    generatedAt: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(),
-    isRead: true,
-    linkedStrategiesCount: 2,
-  },
-];
+// 타입 정의
+interface Insight {
+  id: string;
+  type: 'ANOMALY' | 'DAILY_SUMMARY' | 'TREND' | 'CREATIVE' | 'PREDICTION';
+  severity: 'INFO' | 'WARNING' | 'CRITICAL';
+  title: string;
+  summary: string;
+  keyFindings: Array<{
+    finding: string;
+    impact: 'POSITIVE' | 'NEGATIVE' | 'NEUTRAL';
+    metric: string;
+    change: number;
+  }>;
+  recommendations: string[];
+  generatedAt: string;
+  isRead: boolean;
+  linkedStrategiesCount: number;
+  metrics?: {
+    type?: string;
+    metric?: string;
+    currentValue?: number;
+    previousValue?: number;
+    changePercent?: number;
+  };
+}
 
-const mockAnomalies = [
-  {
-    type: 'CPA_SPIKE' as const,
-    severity: 'CRITICAL' as const,
-    metric: 'CPA',
-    currentValue: 14500,
-    previousValue: 10000,
-    changePercent: 45,
-  },
-  {
-    type: 'CTR_DROP' as const,
-    severity: 'WARNING' as const,
-    metric: 'CTR',
-    currentValue: 0.8,
-    previousValue: 1.2,
-    changePercent: -33,
-  },
-];
+interface Anomaly {
+  type: 'CPA_SPIKE' | 'CTR_DROP' | 'IMPRESSION_DROP' | 'SPEND_VELOCITY' | 'ROAS_DROP' | 'OTHER';
+  severity: 'WARNING' | 'CRITICAL';
+  metric: string;
+  currentValue: number;
+  previousValue: number;
+  changePercent: number;
+}
 
 type FilterType = 'ALL' | 'DAILY_SUMMARY' | 'ANOMALY' | 'TREND' | 'CREATIVE' | 'PREDICTION';
 type FilterSeverity = 'ALL' | 'INFO' | 'WARNING' | 'CRITICAL';
@@ -199,8 +52,8 @@ export default function InsightsPage() {
   const [filterSeverity, setFilterSeverity] = useState<FilterSeverity>('ALL');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [selectedInsight, setSelectedInsight] = useState<string | null>(null);
-  const [insights, setInsights] = useState<any[]>(mockInsights);
-  const [anomalies, setAnomalies] = useState<any[]>(mockAnomalies);
+  const [insights, setInsights] = useState<Insight[]>([]);
+  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -248,12 +101,14 @@ export default function InsightsPage() {
             setError('인사이트가 아직 생성되지 않았습니다. "인사이트 새로고침"을 클릭하여 생성하세요.');
           }
 
-          // Extract anomalies from insights
-          const anomalyInsights = mappedInsights.filter((i: any) => i.type === 'ANOMALY');
+          // Extract anomalies from insights (only WARNING or CRITICAL)
+          const anomalyInsights = mappedInsights.filter((i: any) =>
+            i.type === 'ANOMALY' && (i.severity === 'WARNING' || i.severity === 'CRITICAL')
+          );
           if (anomalyInsights.length > 0) {
-            const mappedAnomalies = anomalyInsights.slice(0, 2).map((insight: any) => ({
-              type: insight.metrics?.type || 'CPA_SPIKE',
-              severity: insight.severity,
+            const mappedAnomalies: Anomaly[] = anomalyInsights.slice(0, 2).map((insight: any) => ({
+              type: (insight.metrics?.type || 'CPA_SPIKE') as Anomaly['type'],
+              severity: insight.severity as 'WARNING' | 'CRITICAL',
               metric: insight.metrics?.metric || 'CPA',
               currentValue: insight.metrics?.currentValue || 0,
               previousValue: insight.metrics?.previousValue || 0,
