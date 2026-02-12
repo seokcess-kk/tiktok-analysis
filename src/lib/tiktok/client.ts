@@ -212,6 +212,21 @@ export class TikTokClient {
     return this.request<TikTokListResponse<TikTokAd>>(`/ad/get/`, 'GET', body);
   }
 
+  async getAllAds(adGroupIds?: string[]): Promise<TikTokAd[]> {
+    const ads: TikTokAd[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const response = await this.getAds(adGroupIds, page);
+      ads.push(...response.list);
+      hasMore = page < response.page_info.total_page;
+      page++;
+    }
+
+    return ads;
+  }
+
   // ─────────────────────────────────────────
   // Creatives
   // ─────────────────────────────────────────

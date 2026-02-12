@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { createTikTokClient } from '@/lib/tiktok/client';
-import { Campaign, MetricLevel } from '@prisma/client';
+import { Campaign, AdGroup, Ad, Prisma } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,6 +12,8 @@ export async function POST(
   try {
     const { searchParams } = new URL(request.url);
     const syncMetrics = searchParams.get('metrics') !== 'false'; // 기본값: true
+    const syncAdGroups = searchParams.get('adgroups') !== 'false'; // 기본값: true
+    const syncAds = searchParams.get('ads') !== 'false'; // 기본값: true
     const days = Math.min(parseInt(searchParams.get('days') || '7', 10), 30);
 
     const account = await prisma.account.findUnique({
@@ -28,10 +30,11 @@ export async function POST(
     // TikTok API 클라이언트 생성
     const client = createTikTokClient(account.accessToken, account.tiktokAdvId);
 
-    // 캠페인 목록 조회
+    // ─────────────────────────────────────────
+    // 1. 캠페인 동기화
+    // ─────────────────────────────────────────
     const campaigns = await client.getAllCampaigns();
 
-    // 캠페인 저장/업데이트
     const syncedCampaigns: Campaign[] = [];
     for (const campaign of campaigns) {
       const synced = await prisma.campaign.upsert({
@@ -59,6 +62,90 @@ export async function POST(
         },
       });
       syncedCampaigns.push(synced);
+    }
+
+    // TikTok 캠페인 ID → 내부 캠페인 ID 매핑
+    const campaignIdMap = new Map<string, string>();
+    syncedCampaigns.forEach(c => {
+      campaignIdMap.set(c.tiktokCampaignId, c.id);
+    });
+
+    // ─────────────────────────────────────────
+    // 2. 광고그룹 동기화
+    // ─────────────────────────────────────────
+    const syncedAdGroups: AdGroup[] = [];
+    const adGroupIdMap = new Map<string, string>(); // TikTok AdGroup ID → 내부 AdGroup ID
+
+    if (syncAdGroups && syncedCampaigns.length > 0) {
+      const tiktokCampaignIds = campaigns.map(c => c.campaign_id);
+      const adGroups = await client.getAllAdGroups(tiktokCampaignIds);
+
+      for (const adGroup of adGroups) {
+        const internalCampaignId = campaignIdMap.get(adGroup.campaign_id);
+        if (!internalCampaignId) continue;
+
+        const synced = await prisma.adGroup.upsert({
+          where: {
+            campaignId_tiktokAdGroupId: {
+              campaignId: internalCampaignId,
+              tiktokAdGroupId: adGroup.adgroup_id,
+            },
+          },
+          update: {
+            name: adGroup.adgroup_name,
+            status: adGroup.status || 'UNKNOWN',
+            bidStrategy: adGroup.bid_type || 'UNKNOWN',
+            bidAmount: adGroup.bid_price || null,
+            targeting: (adGroup.targeting || {}) as Prisma.InputJsonValue,
+          },
+          create: {
+            campaignId: internalCampaignId,
+            tiktokAdGroupId: adGroup.adgroup_id,
+            name: adGroup.adgroup_name,
+            status: adGroup.status || 'UNKNOWN',
+            bidStrategy: adGroup.bid_type || 'UNKNOWN',
+            bidAmount: adGroup.bid_price || null,
+            targeting: (adGroup.targeting || {}) as Prisma.InputJsonValue,
+          },
+        });
+        syncedAdGroups.push(synced);
+        adGroupIdMap.set(adGroup.adgroup_id, synced.id);
+      }
+    }
+
+    // ─────────────────────────────────────────
+    // 3. 광고 동기화
+    // ─────────────────────────────────────────
+    const syncedAds: Ad[] = [];
+
+    if (syncAds && syncedAdGroups.length > 0) {
+      const tiktokAdGroupIds = syncedAdGroups.map(ag => ag.tiktokAdGroupId);
+      const ads = await client.getAllAds(tiktokAdGroupIds);
+
+      for (const ad of ads) {
+        const internalAdGroupId = adGroupIdMap.get(ad.adgroup_id);
+        if (!internalAdGroupId) continue;
+
+        const synced = await prisma.ad.upsert({
+          where: {
+            adGroupId_tiktokAdId: {
+              adGroupId: internalAdGroupId,
+              tiktokAdId: ad.ad_id,
+            },
+          },
+          update: {
+            name: ad.ad_name,
+            status: ad.status || 'UNKNOWN',
+          },
+          create: {
+            adGroupId: internalAdGroupId,
+            tiktokAdId: ad.ad_id,
+            name: ad.ad_name,
+            status: ad.status || 'UNKNOWN',
+          },
+        });
+        syncedAds.push(synced);
+      }
     }
 
     // 성과 데이터 동기화
@@ -158,8 +245,15 @@ export async function POST(
       success: true,
       data: {
         syncedCampaigns: syncedCampaigns.length,
+        syncedAdGroups: syncedAdGroups.length,
+        syncedAds: syncedAds.length,
         syncedMetrics: syncedMetricsCount,
-        campaigns: syncedCampaigns,
+        summary: {
+          campaigns: syncedCampaigns.length,
+          adGroups: syncedAdGroups.length,
+          ads: syncedAds.length,
+          metrics: syncedMetricsCount,
+        },
       },
     });
   } catch (error) {
