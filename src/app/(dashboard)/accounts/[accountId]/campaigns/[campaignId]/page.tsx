@@ -19,11 +19,10 @@ import { Skeleton } from '@/components/common/skeleton-loader';
 import {
   RefreshCw,
   AlertTriangle,
-  Lightbulb,
-  Target,
   ChevronRight,
   Layers,
 } from 'lucide-react';
+import { AIHubCard } from '@/components/ai/ai-hub-card';
 import { DateRangePicker } from '@/components/filters';
 import { useDateRangeUrlState } from '@/hooks';
 import { Label } from '@/components/ui/label';
@@ -348,37 +347,14 @@ export default function CampaignDashboardPage() {
         </div>
       </div>
 
-      {/* AI Summary Cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <Link href={`/accounts/${accountId}/campaigns/${campaignId}/insights`}>
-          <Card className="cursor-pointer hover:border-primary/50 transition-colors">
-            <CardContent className="flex items-center gap-4 py-4">
-              <div className="p-3 rounded-lg bg-blue-100">
-                <Lightbulb className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">AI 인사이트</p>
-                <p className="text-2xl font-bold">{campaignData.aiSummary.insightCount}</p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-        <Link href={`/accounts/${accountId}/campaigns/${campaignId}/strategies`}>
-          <Card className="cursor-pointer hover:border-primary/50 transition-colors">
-            <CardContent className="flex items-center gap-4 py-4">
-              <div className="p-3 rounded-lg bg-green-100">
-                <Target className="h-6 w-6 text-green-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm text-muted-foreground">대기 중인 전략</p>
-                <p className="text-2xl font-bold">{campaignData.aiSummary.pendingStrategyCount}</p>
-              </div>
-              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-            </CardContent>
-          </Card>
-        </Link>
-      </div>
+      {/* AI Hub Card */}
+      <AIHubCard
+        insightCount={campaignData.aiSummary.insightCount}
+        strategyCount={campaignData.aiSummary.pendingStrategyCount}
+        pendingStrategyCount={campaignData.aiSummary.pendingStrategyCount}
+        insightsHref={`/accounts/${accountId}/campaigns/${campaignId}/insights`}
+        strategiesHref={`/accounts/${accountId}/campaigns/${campaignId}/strategies`}
+      />
 
       {/* KPI Grid */}
       <KpiGrid kpis={kpiData} />

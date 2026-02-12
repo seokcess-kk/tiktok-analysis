@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Megaphone, ChevronRight, RefreshCw, Layers, Image } from 'lucide-react';
+import { Loader2, Megaphone, RefreshCw, Layers, Image } from 'lucide-react';
+import { PageHeader } from '@/components/dashboard/page-header';
+import type { DrilldownLevel } from '@/components/dashboard/drilldown-nav';
 import { formatCurrency } from '@/lib/utils';
 import { FilterBar, SearchInput, FilterDropdown } from '@/components/filters';
 
@@ -158,30 +160,34 @@ export default function CampaignListPage() {
       .finally(() => setLoading(false));
   };
 
+  // 브레드크럼 레벨
+  const breadcrumbLevels: DrilldownLevel[] = accountName
+    ? [
+        {
+          id: accountId,
+          name: accountName,
+          type: 'account',
+          href: `/accounts/${accountId}`,
+        },
+      ]
+    : [];
+
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center text-sm text-muted-foreground">
-        <Link href="/accounts" className="hover:text-foreground">
-          계정
-        </Link>
-        <ChevronRight className="h-4 w-4 mx-1" />
-        <span className="text-foreground font-medium">{accountName || '...'}</span>
-      </div>
-
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">캠페인 목록</h1>
-          <p className="text-muted-foreground">
-            캠페인을 선택하여 상세 성과를 확인하세요
-          </p>
-        </div>
-        <Button variant="outline" onClick={handleRefresh} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-          새로고침
-        </Button>
-      </div>
+      {/* Page Header with Breadcrumb */}
+      <PageHeader
+        title="캠페인 목록"
+        description="캠페인을 선택하여 상세 성과를 확인하세요"
+        levels={breadcrumbLevels}
+        scope="account"
+        scopeName={accountName || '...'}
+        actions={
+          <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            새로고침
+          </Button>
+        }
+      />
 
       {/* Filter Bar */}
       <FilterBar>
