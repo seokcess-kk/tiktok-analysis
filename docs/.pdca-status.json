@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-02-11T06:27:08.180Z",
+  "lastUpdated": "2026-02-12T06:20:00.597Z",
   "activeFeatures": [
     "tiktok-analysis",
     "db",
@@ -49,7 +49,8 @@
     "anomaly-detection",
     "accept",
     "reject",
-    "[campaignId]"
+    "[campaignId]",
+    "onboarding"
   ],
   "primaryFeature": "tiktok-analysis",
   "features": {
@@ -91,9 +92,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T13:56:09.391Z",
-        "lastUpdated": "2026-02-11T02:14:44.435Z"
+        "lastUpdated": "2026-02-11T08:32:45.789Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\ui\\textarea.tsx"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\ui\\collapsible.tsx"
     },
     "tiktok": {
       "phase": "do",
@@ -156,7 +157,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T13:58:54.408Z",
-        "lastUpdated": "2026-02-11T06:22:39.767Z"
+        "lastUpdated": "2026-02-12T06:20:00.597Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\layout\\sidebar.tsx"
     },
@@ -169,7 +170,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T13:59:57.564Z",
-        "lastUpdated": "2026-02-10T15:18:58.332Z"
+        "lastUpdated": "2026-02-12T06:19:53.651Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\layout.tsx"
     },
@@ -182,7 +183,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T14:00:01.633Z",
-        "lastUpdated": "2026-02-10T16:21:39.362Z"
+        "lastUpdated": "2026-02-11T07:02:30.859Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\accounts\\page.tsx"
     },
@@ -195,7 +196,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T14:00:03.792Z",
-        "lastUpdated": "2026-02-11T06:08:08.694Z"
+        "lastUpdated": "2026-02-12T06:19:38.425Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\accounts\\[accountId]\\page.tsx"
     },
@@ -312,7 +313,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T14:26:04.253Z",
-        "lastUpdated": "2026-02-11T06:24:53.612Z"
+        "lastUpdated": "2026-02-12T06:19:39.692Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\accounts\\[accountId]\\campaigns\\[campaignId]\\insights\\page.tsx"
     },
@@ -572,9 +573,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-10T15:19:04.630Z",
-        "lastUpdated": "2026-02-10T15:28:15.765Z"
+        "lastUpdated": "2026-02-11T08:31:41.007Z"
       },
-      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\filters\\index.ts"
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\filters\\date-range-picker.tsx"
     },
     "search": {
       "phase": "do",
@@ -679,6 +680,19 @@
         "lastUpdated": "2026-02-11T06:26:30.746Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\accounts\\[accountId]\\campaigns\\[campaignId]\\page.tsx"
+    },
+    "onboarding": {
+      "phase": "do",
+      "phaseNumber": 3,
+      "matchRate": null,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {},
+      "timestamps": {
+        "started": "2026-02-11T08:33:42.149Z",
+        "lastUpdated": "2026-02-11T08:33:42.149Z"
+      },
+      "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\components\\onboarding\\setup-guide.tsx"
     }
   },
   "pipeline": {
@@ -689,7 +703,7 @@
   "session": {
     "startedAt": "2026-02-01T07:00:00.000Z",
     "onboardingCompleted": true,
-    "lastActivity": "2026-02-11T06:27:08.180Z"
+    "lastActivity": "2026-02-12T06:20:00.597Z"
   },
   "history": [
     {
@@ -2573,6 +2587,120 @@
     {
       "timestamp": "2026-02-11T06:27:08.180Z",
       "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T07:02:30.859Z",
+      "feature": "accounts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:31:32.299Z",
+      "feature": "filters",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:31:41.007Z",
+      "feature": "filters",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:32:03.167Z",
+      "feature": "layout",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:32:15.599Z",
+      "feature": "layout",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:32:32.875Z",
+      "feature": "layout",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:32:45.789Z",
+      "feature": "ui",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:33:42.149Z",
+      "feature": "onboarding",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:34:27.294Z",
+      "feature": "[accountId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:34:34.420Z",
+      "feature": "[accountId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:34:43.444Z",
+      "feature": "[accountId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:34:59.802Z",
+      "feature": "[accountId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-11T08:35:13.387Z",
+      "feature": "[accountId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T06:19:35.694Z",
+      "feature": "layout",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T06:19:37.078Z",
+      "feature": "layout",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T06:19:38.425Z",
+      "feature": "[accountId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T06:19:39.692Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T06:19:53.651Z",
+      "feature": "(dashboard)",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T06:20:00.597Z",
+      "feature": "layout",
       "phase": "do",
       "action": "updated"
     }

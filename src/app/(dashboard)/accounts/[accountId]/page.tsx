@@ -304,8 +304,8 @@ export default function DashboardPage() {
       // 캠페인 수 처리
       if (campaignsRes.status === 'fulfilled' && campaignsRes.value.ok) {
         const campaignsData = await campaignsRes.value.json();
-        if (campaignsData.success && campaignsData.pagination) {
-          setCampaignCount(campaignsData.pagination.total);
+        if (campaignsData.success && campaignsData.data?.pagination) {
+          setCampaignCount(campaignsData.data.pagination.total);
         }
       }
 

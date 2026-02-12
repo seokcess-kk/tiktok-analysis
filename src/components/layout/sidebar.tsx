@@ -12,7 +12,6 @@ import {
   Settings,
   Bell,
   ArrowLeft,
-  Layers,
   ChevronDown,
   ChevronRight,
   Megaphone,
@@ -89,11 +88,6 @@ function getCampaignNavItems(accountId: string, campaignId: string): NavItem[] {
       href: `/accounts/${accountId}/campaigns/${campaignId}/strategies`,
       icon: <Target className="h-5 w-5" />,
     },
-    {
-      label: '광고그룹',
-      href: `/accounts/${accountId}/campaigns/${campaignId}/adgroups`,
-      icon: <Layers className="h-5 w-5" />,
-    },
   ];
 }
 
@@ -131,8 +125,8 @@ export function Sidebar({ accountId }: SidebarProps) {
       fetch(`/api/accounts/${currentAccountId}/campaigns?limit=10`)
         .then((res) => res.json())
         .then((data) => {
-          if (data.success && data.data) {
-            setCampaigns(data.data);
+          if (data.success && data.data?.campaigns) {
+            setCampaigns(data.data.campaigns);
           } else {
             setCampaigns([]);
           }

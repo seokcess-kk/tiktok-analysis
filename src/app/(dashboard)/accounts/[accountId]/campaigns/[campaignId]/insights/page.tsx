@@ -79,6 +79,7 @@ export default function CampaignInsightsPage() {
             generatedAt: insight.generatedAt,
             isRead: insight.isRead,
             linkedStrategiesCount: insight.linkedStrategies?.length || 0,
+            metrics: insight.metrics,
           }));
 
           setInsights(mappedInsights);
