@@ -76,10 +76,16 @@ export interface TikTokMetrics {
   cpm: number;
   cvr: number;
   cpa: number;
+  roas: number;
   video_play_actions?: number;
   video_watched_2s?: number;
   video_watched_6s?: number;
   average_video_play?: number;
+  // 레벨별 ID (동기화용)
+  campaign_id?: string;
+  adgroup_id?: string;
+  ad_id?: string;
+  advertiser_id?: string;
 }
 
 // ─────────────────────────────────────────

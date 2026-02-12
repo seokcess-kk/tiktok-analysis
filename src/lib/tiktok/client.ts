@@ -353,6 +353,11 @@ export class TikTokClient {
         video_watched_2s: Number(metrics.video_watched_2s) || undefined,
         video_watched_6s: Number(metrics.video_watched_6s) || undefined,
         average_video_play: Number(metrics.average_video_play) || undefined,
+        // 레벨별 ID 추가
+        campaign_id: dimensions.campaign_id,
+        adgroup_id: dimensions.adgroup_id,
+        ad_id: dimensions.ad_id,
+        advertiser_id: dimensions.advertiser_id,
       };
     });
 
