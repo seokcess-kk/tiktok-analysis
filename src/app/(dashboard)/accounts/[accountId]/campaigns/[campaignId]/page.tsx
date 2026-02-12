@@ -95,12 +95,14 @@ interface AdGroup {
   name: string;
   status: string;
   bidStrategy: string;
+  adCount: number;
   metrics: {
     spend: number;
     impressions: number;
     clicks: number;
     conversions: number;
     ctr: number;
+    cvr: number;
     cpa: number;
     roas: number;
   };
@@ -159,9 +161,10 @@ export default function CampaignDashboardPage() {
       const endDate = formatDate(effectiveDateRange.to || new Date());
 
       // 병렬로 데이터 조회
-      const [campaignRes, metricsRes] = await Promise.all([
+      const [campaignRes, metricsRes, adGroupsRes] = await Promise.all([
         fetch(`/api/accounts/${accountId}/campaigns/${campaignId}?days=7`),
         fetch(`/api/accounts/${accountId}/campaigns/${campaignId}/metrics?startDate=${startDate}&endDate=${endDate}`),
+        fetch(`/api/accounts/${accountId}/campaigns/${campaignId}/adgroups?days=7`),
       ]);
 
       if (!campaignRes.ok) {
@@ -170,6 +173,7 @@ export default function CampaignDashboardPage() {
 
       const campaignResult = await campaignRes.json();
       const metricsResult = await metricsRes.json();
+      const adGroupsResult = await adGroupsRes.json();
 
       if (campaignResult.success) {
         setCampaignData(campaignResult.data);
@@ -177,6 +181,10 @@ export default function CampaignDashboardPage() {
 
       if (metricsResult.success) {
         setMetricsData(metricsResult.data);
+      }
+
+      if (adGroupsResult.success) {
+        setAdGroups(adGroupsResult.data.adGroups);
       }
     } catch (err) {
       console.error('Error fetching campaign data:', err);
@@ -423,20 +431,57 @@ export default function CampaignDashboardPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>광고그룹</CardTitle>
-              <CardDescription>이 캠페인의 광고그룹 목록입니다</CardDescription>
+              <CardDescription>이 캠페인의 광고그룹 목록입니다 ({adGroups.length}개)</CardDescription>
             </div>
-            <Link href={`/accounts/${accountId}/campaigns/${campaignId}/adgroups`}>
-              <Button variant="outline" size="sm">
-                <Layers className="h-4 w-4 mr-2" />
-                전체 보기
-              </Button>
-            </Link>
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-center text-muted-foreground py-8">
-            광고그룹 {campaignData.campaign.adGroupCount}개
-          </p>
+          {adGroups.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">
+              광고그룹이 없습니다
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-2 font-medium">광고그룹명</th>
+                    <th className="text-left py-3 px-2 font-medium">상태</th>
+                    <th className="text-right py-3 px-2 font-medium">광고</th>
+                    <th className="text-right py-3 px-2 font-medium">지출</th>
+                    <th className="text-right py-3 px-2 font-medium">노출</th>
+                    <th className="text-right py-3 px-2 font-medium">클릭</th>
+                    <th className="text-right py-3 px-2 font-medium">전환</th>
+                    <th className="text-right py-3 px-2 font-medium">CTR</th>
+                    <th className="text-right py-3 px-2 font-medium">ROAS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {adGroups.map((adGroup) => (
+                    <tr key={adGroup.id} className="border-b hover:bg-muted/50">
+                      <td className="py-3 px-2">
+                        <div className="font-medium truncate max-w-[200px]" title={adGroup.name}>
+                          {adGroup.name}
+                        </div>
+                      </td>
+                      <td className="py-3 px-2">
+                        <Badge variant={adGroup.status === 'ENABLE' ? 'default' : 'secondary'}>
+                          {adGroup.status === 'ENABLE' ? '운영중' : '일시정지'}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-2 text-right">{adGroup.adCount}개</td>
+                      <td className="py-3 px-2 text-right">{formatCurrency(adGroup.metrics.spend)}</td>
+                      <td className="py-3 px-2 text-right">{adGroup.metrics.impressions.toLocaleString()}</td>
+                      <td className="py-3 px-2 text-right">{adGroup.metrics.clicks.toLocaleString()}</td>
+                      <td className="py-3 px-2 text-right">{adGroup.metrics.conversions}</td>
+                      <td className="py-3 px-2 text-right">{adGroup.metrics.ctr.toFixed(2)}%</td>
+                      <td className="py-3 px-2 text-right">{adGroup.metrics.roas.toFixed(2)}x</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
