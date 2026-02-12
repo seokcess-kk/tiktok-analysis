@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/common/skeleton-loader';
-import { RefreshCw, ChevronRight, ArrowLeft } from 'lucide-react';
+import { RefreshCw, ChevronRight, ArrowLeft, Lightbulb, Target } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 interface Ad {
@@ -76,6 +76,10 @@ export default function AdGroupDetailPage() {
   const [data, setData] = useState<AdGroupData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [aiSummary, setAiSummary] = useState<{
+    insightCount: number;
+    pendingStrategyCount: number;
+  } | null>(null);
 
   const fetchData = async () => {
     try {
@@ -96,6 +100,17 @@ export default function AdGroupDetailPage() {
         setData(result.data);
       } else {
         throw new Error(result.error?.message || '데이터를 불러오는데 실패했습니다');
+      }
+
+      // 캠페인 AI 정보 fetch
+      const campaignResponse = await fetch(
+        `/api/accounts/${accountId}/campaigns/${campaignId}?days=7`
+      );
+      if (campaignResponse.ok) {
+        const campaignResult = await campaignResponse.json();
+        if (campaignResult.success && campaignResult.data.aiSummary) {
+          setAiSummary(campaignResult.data.aiSummary);
+        }
       }
     } catch (err) {
       console.error('Error fetching ad group data:', err);
@@ -228,6 +243,40 @@ export default function AdGroupDetailPage() {
               <p className="text-2xl font-bold">{totalMetrics.conversions}</p>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* AI Summary Cards */}
+      {aiSummary && (
+        <div className="grid grid-cols-2 gap-4">
+          <Link href={`/accounts/${accountId}/campaigns/${campaignId}/insights`}>
+            <Card className="cursor-pointer hover:border-primary/50 transition-colors">
+              <CardContent className="flex items-center gap-4 py-4">
+                <div className="p-3 rounded-lg bg-blue-100">
+                  <Lightbulb className="h-6 w-6 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">캠페인 AI 인사이트</p>
+                  <p className="text-2xl font-bold">{aiSummary.insightCount}</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
+          <Link href={`/accounts/${accountId}/campaigns/${campaignId}/strategies`}>
+            <Card className="cursor-pointer hover:border-primary/50 transition-colors">
+              <CardContent className="flex items-center gap-4 py-4">
+                <div className="p-3 rounded-lg bg-green-100">
+                  <Target className="h-6 w-6 text-green-600" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">대기 중인 전략</p>
+                  <p className="text-2xl font-bold">{aiSummary.pendingStrategyCount}</p>
+                </div>
+                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </CardContent>
+            </Card>
+          </Link>
         </div>
       )}
 

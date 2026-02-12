@@ -1,0 +1,194 @@
+# Gap Analysis Report: 광고그룹 레벨 AI 연동
+
+**Feature**: adgroup-ai-integration
+**Analysis Date**: 2026-02-12
+**Match Rate**: 100%
+
+---
+
+## 1. Overview
+
+Design 문서에 명시된 광고그룹 AI 연동 기능의 구현 상태를 분석한 결과, **모든 항목이 구현 완료**되었습니다.
+
+---
+
+## 2. UI 구현 검증
+
+### 2.1 Import 추가
+
+| 항목 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| Lightbulb 아이콘 import | ✅ | ✅ Line 10 | ✅ |
+| Target 아이콘 import | ✅ | ✅ Line 10 | ✅ |
+
+**코드 확인:**
+```tsx
+// Line 10
+import { RefreshCw, ChevronRight, ArrowLeft, Lightbulb, Target } from 'lucide-react';
+```
+
+### 2.2 State 추가
+
+| 항목 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| aiSummary state | ✅ | ✅ Lines 79-82 | ✅ |
+| insightCount 타입 | ✅ | ✅ number | ✅ |
+| pendingStrategyCount 타입 | ✅ | ✅ number | ✅ |
+
+**코드 확인:**
+```tsx
+// Lines 79-82
+const [aiSummary, setAiSummary] = useState<{
+  insightCount: number;
+  pendingStrategyCount: number;
+} | null>(null);
+```
+
+### 2.3 API Fetch 추가
+
+| 항목 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| 캠페인 API fetch | ✅ | ✅ Lines 105-114 | ✅ |
+| API URL 형식 | ✅ | ✅ `/api/accounts/${accountId}/campaigns/${campaignId}?days=7` | ✅ |
+| 응답 검증 | ✅ | ✅ `campaignResult.success && campaignResult.data.aiSummary` | ✅ |
+
+**코드 확인:**
+```tsx
+// Lines 105-114
+const campaignResponse = await fetch(
+  `/api/accounts/${accountId}/campaigns/${campaignId}?days=7`
+);
+if (campaignResponse.ok) {
+  const campaignResult = await campaignResponse.json();
+  if (campaignResult.success && campaignResult.data.aiSummary) {
+    setAiSummary(campaignResult.data.aiSummary);
+  }
+}
+```
+
+---
+
+## 3. UI 컴포넌트 검증
+
+### 3.1 AI 인사이트 카드
+
+| 항목 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| 그리드 레이아웃 | `grid grid-cols-2 gap-4` | ✅ Line 251 | ✅ |
+| Link 컴포넌트 | `/campaigns/{campaignId}/insights` | ✅ Line 252 | ✅ |
+| Card 호버 효과 | `hover:border-primary/50` | ✅ Line 253 | ✅ |
+| 아이콘 배경색 | `bg-blue-100` | ✅ Line 255 | ✅ |
+| 아이콘 색상 | `text-blue-600` | ✅ Line 256 | ✅ |
+| 라벨 텍스트 | "캠페인 AI 인사이트" | ✅ Line 259 | ✅ |
+| 카운트 표시 | `aiSummary.insightCount` | ✅ Line 260 | ✅ |
+| 화살표 아이콘 | `ChevronRight` | ✅ Line 262 | ✅ |
+
+### 3.2 AI 전략 카드
+
+| 항목 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| Link 컴포넌트 | `/campaigns/{campaignId}/strategies` | ✅ Line 266 | ✅ |
+| Card 호버 효과 | `hover:border-primary/50` | ✅ Line 267 | ✅ |
+| 아이콘 배경색 | `bg-green-100` | ✅ Line 269 | ✅ |
+| 아이콘 색상 | `text-green-600` | ✅ Line 270 | ✅ |
+| 라벨 텍스트 | "대기 중인 전략" | ✅ Line 273 | ✅ |
+| 카운트 표시 | `aiSummary.pendingStrategyCount` | ✅ Line 274 | ✅ |
+| 화살표 아이콘 | `ChevronRight` | ✅ Line 276 | ✅ |
+
+---
+
+## 4. 배치 위치 검증
+
+| 항목 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| KPI Cards 아래 | ✅ | ✅ Line 248 이후 | ✅ |
+| Ads Table 위 | ✅ | ✅ Line 283 이전 | ✅ |
+| 조건부 렌더링 | `{aiSummary && ...}` | ✅ Line 250 | ✅ |
+
+**레이아웃 확인:**
+```
+Line 219-247: Summary Cards (KPI)
+Line 249-281: ★ AI Summary Cards (NEW)
+Line 283-354: Ads Table
+```
+
+---
+
+## 5. Design 체크리스트 검증
+
+### 5.1 UI 구현 체크리스트
+
+| ID | 항목 | Design | Implementation | Match |
+|----|------|--------|----------------|-------|
+| UI-01 | Lightbulb, Target 아이콘 import | ✅ | ✅ | ✅ |
+| UI-02 | aiSummary state 추가 | ✅ | ✅ | ✅ |
+| UI-03 | 캠페인 API fetch 추가 | ✅ | ✅ | ✅ |
+| UI-04 | AI 인사이트 카드 컴포넌트 | ✅ | ✅ | ✅ |
+| UI-05 | AI 전략 카드 컴포넌트 | ✅ | ✅ | ✅ |
+| UI-06 | 캠페인 인사이트 페이지 링크 | ✅ | ✅ | ✅ |
+| UI-07 | 캠페인 전략 페이지 링크 | ✅ | ✅ | ✅ |
+
+### 5.2 스타일링 체크리스트
+
+| ID | 항목 | Design | Implementation | Match |
+|----|------|--------|----------------|-------|
+| STYLE-01 | 인사이트 카드 배경색 `bg-blue-100` | ✅ | ✅ | ✅ |
+| STYLE-02 | 인사이트 아이콘 색상 `text-blue-600` | ✅ | ✅ | ✅ |
+| STYLE-03 | 전략 카드 배경색 `bg-green-100` | ✅ | ✅ | ✅ |
+| STYLE-04 | 전략 아이콘 색상 `text-green-600` | ✅ | ✅ | ✅ |
+| STYLE-05 | 호버 효과 `hover:border-primary/50` | ✅ | ✅ | ✅ |
+| STYLE-06 | 그리드 레이아웃 `grid grid-cols-2 gap-4` | ✅ | ✅ | ✅ |
+
+---
+
+## 6. 성공 기준 검증
+
+| 기준 | Design | Implementation | Match |
+|------|--------|----------------|-------|
+| 광고그룹 상세 페이지에 AI 인사이트 카드 표시 | ✅ | ✅ | ✅ |
+| 광고그룹 상세 페이지에 AI 전략 카드 표시 | ✅ | ✅ | ✅ |
+| AI 카드 클릭 시 캠페인 인사이트 페이지로 이동 | ✅ | ✅ | ✅ |
+| AI 카드 클릭 시 캠페인 전략 페이지로 이동 | ✅ | ✅ | ✅ |
+| 캠페인 페이지와 동일한 UI/UX 스타일 | ✅ | ✅ | ✅ |
+| 빌드 및 타입 체크 통과 | ✅ | ✅ | ✅ |
+
+---
+
+## 7. 전체 Match Rate
+
+| 카테고리 | 항목 수 | 일치 | Match Rate |
+|---------|--------|------|------------|
+| Import | 2 | 2 | 100% |
+| State | 3 | 3 | 100% |
+| API Fetch | 3 | 3 | 100% |
+| UI Components | 16 | 16 | 100% |
+| Layout | 3 | 3 | 100% |
+| UI Checklist | 7 | 7 | 100% |
+| Style Checklist | 6 | 6 | 100% |
+| Success Criteria | 6 | 6 | 100% |
+| **Total** | **46** | **46** | **100%** |
+
+---
+
+## 8. 결론
+
+### Overall Score: 100/100
+
+**광고그룹 AI 연동 기능은 Design 문서의 모든 요구사항을 완벽히 충족합니다.**
+
+- ✅ 모든 Import 추가됨
+- ✅ 모든 State 구현됨
+- ✅ 캠페인 API Fetch 구현됨
+- ✅ AI 인사이트 카드 완전 구현
+- ✅ AI 전략 카드 완전 구현
+- ✅ 올바른 배치 위치 (KPI 카드 아래, 광고 테이블 위)
+- ✅ 캠페인 페이지와 동일한 UI/UX 스타일
+- ✅ TypeScript 타입 체크 통과
+
+### Iteration Required: No
+
+Match Rate 100%로 추가 개선 불필요.
+
+---
+
+*Generated by bkit gap-detector agent*

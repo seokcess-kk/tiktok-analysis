@@ -6,9 +6,9 @@
     "level": "Enterprise"
   },
   "lastReport": {
-    "feature": "ai-insight-strategy-enhancement",
+    "feature": "adgroup-ai-integration",
     "date": "2026-02-12",
-    "path": "docs/04-report/features/ai-insight-strategy-enhancement.report.md"
+    "path": "docs/04-report/features/adgroup-ai-integration.report.md"
   },
   "archivedPDCA": [
     {
@@ -46,6 +46,16 @@
       "startedAt": "2026-02-12T11:00:00.000Z",
       "completedAt": "2026-02-12T09:30:00.000Z",
       "archivedAt": "2026-02-12T09:30:00.000Z",
+      "matchRate": 100,
+      "iterationCount": 0,
+      "archivedTo": "docs/04-report/features/"
+    },
+    {
+      "feature": "adgroup-ai-integration",
+      "phase": "archived",
+      "startedAt": "2026-02-12T10:00:00.000Z",
+      "completedAt": "2026-02-12T10:30:00.000Z",
+      "archivedAt": "2026-02-12T10:30:00.000Z",
       "matchRate": 100,
       "iterationCount": 0,
       "archivedTo": "docs/04-report/features/"
