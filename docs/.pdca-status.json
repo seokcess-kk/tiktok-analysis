@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-02-12T09:32:44.104Z",
+  "lastUpdated": "2026-02-12T09:42:55.135Z",
   "activeFeatures": [
     "tiktok-analysis",
     "db",
@@ -319,7 +319,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-02-05T14:26:04.253Z",
-        "lastUpdated": "2026-02-12T07:15:27.733Z"
+        "lastUpdated": "2026-02-12T09:42:55.135Z"
       },
       "lastFile": "C:\\Users\\assag\\solution\\tiktok-analysis\\src\\app\\(dashboard)\\accounts\\[accountId]\\insights\\page.tsx"
     },
@@ -787,7 +787,7 @@
   "session": {
     "startedAt": "2026-02-01T07:00:00.000Z",
     "onboardingCompleted": true,
-    "lastActivity": "2026-02-12T09:32:44.104Z"
+    "lastActivity": "2026-02-12T09:42:55.135Z"
   },
   "history": [
     {
@@ -3283,6 +3283,72 @@
     {
       "timestamp": "2026-02-12T09:32:44.104Z",
       "feature": "[adGroupId]",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:41:09.776Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:41:28.135Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:41:35.153Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:41:45.780Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:41:54.453Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:42:04.182Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:42:10.448Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:42:23.400Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:42:36.727Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:42:45.347Z",
+      "feature": "insights",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-02-12T09:42:55.135Z",
+      "feature": "insights",
       "phase": "do",
       "action": "updated"
     }

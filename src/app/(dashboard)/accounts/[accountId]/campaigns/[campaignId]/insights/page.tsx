@@ -7,7 +7,7 @@ import { InsightCard, InsightList } from '@/components/ai/insight-card';
 import { AnomalyAlert, AnomalyBanner, AnomalySummary } from '@/components/ai/anomaly-alert';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ChevronRight, RefreshCw } from 'lucide-react';
+import { ChevronRight, RefreshCw, Target, Loader2 } from 'lucide-react';
 
 type FilterType = 'ALL' | 'DAILY_SUMMARY' | 'ANOMALY' | 'TREND' | 'CREATIVE' | 'PREDICTION';
 type FilterSeverity = 'ALL' | 'INFO' | 'WARNING' | 'CRITICAL';
@@ -26,6 +26,8 @@ export default function CampaignInsightsPage() {
   const [campaignName, setCampaignName] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [converting, setConverting] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Fetch campaign info
   useEffect(() => {
@@ -158,6 +160,42 @@ export default function CampaignInsightsPage() {
     setAnomalies((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Convert insight to strategy handler
+  const handleConvertToStrategy = async (insightId: string) => {
+    setConverting(true);
+    setSuccessMessage(null);
+    try {
+      const response = await fetch(`/api/ai/strategies/${accountId}/campaigns/${campaignId}/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ insightId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate strategy');
+      }
+
+      const result = await response.json();
+      const strategyCount = result.data?.strategies?.length || 1;
+
+      setSuccessMessage(`${strategyCount}개의 전략이 생성되었습니다. 전략 페이지에서 확인하세요.`);
+
+      // Update linked strategies count for the insight
+      setInsights((prev) =>
+        prev.map((i) =>
+          i.id === insightId
+            ? { ...i, linkedStrategiesCount: (i.linkedStrategiesCount || 0) + strategyCount }
+            : i
+        )
+      );
+    } catch (err) {
+      console.error('Failed to convert insight to strategy:', err);
+      setError('전략 생성에 실패했습니다. 나중에 다시 시도해주세요.');
+    } finally {
+      setConverting(false);
+    }
+  };
+
   const filteredInsights = insights.filter((insight) => {
     if (filterType !== 'ALL' && insight.type !== filterType) return false;
     if (filterSeverity !== 'ALL' && insight.severity !== filterSeverity) return false;
@@ -190,6 +228,19 @@ export default function CampaignInsightsPage() {
         <ChevronRight className="h-4 w-4 mx-1" />
         <span className="text-foreground font-medium">AI 인사이트</span>
       </div>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 flex items-center justify-between">
+          <span>{successMessage}</span>
+          <Link
+            href={`/accounts/${accountId}/campaigns/${campaignId}/strategies`}
+            className="text-green-600 hover:text-green-700 font-medium underline"
+          >
+            전략 페이지로 이동
+          </Link>
+        </div>
+      )}
 
       {/* Error Banner */}
       {error && (
@@ -366,9 +417,30 @@ export default function CampaignInsightsPage() {
           )}
 
           {selectedInsightData && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">선택된 인사이트</h3>
+            <div className="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+              <h3 className="text-sm font-semibold text-gray-900">선택된 인사이트</h3>
               <InsightCard {...selectedInsightData} compact={false} />
+              <div className="pt-3 border-t flex gap-2">
+                <Button
+                  onClick={() => handleConvertToStrategy(selectedInsightData.id)}
+                  disabled={converting}
+                  className="flex-1"
+                >
+                  {converting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Target className="h-4 w-4 mr-2" />
+                  )}
+                  {converting ? '생성 중...' : '전략으로 전환'}
+                </Button>
+                {selectedInsightData.linkedStrategiesCount > 0 && (
+                  <Link href={`/accounts/${accountId}/campaigns/${campaignId}/strategies`}>
+                    <Button variant="outline">
+                      연결된 전략 ({selectedInsightData.linkedStrategiesCount})
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
           )}
         </div>
