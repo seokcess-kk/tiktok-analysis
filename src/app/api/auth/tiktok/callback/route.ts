@@ -24,9 +24,10 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  // state 검증 (CSRF 방지)
+  // state 검증 (CSRF 방지) - 필수 검증으로 강화
   const storedState = request.cookies.get('tiktok_oauth_state')?.value;
-  if (state && storedState && state !== storedState) {
+  if (!state || !storedState || state !== storedState) {
+    console.warn('CSRF validation failed: state mismatch or missing', { state: !!state, storedState: !!storedState });
     return NextResponse.redirect(
       new URL('/accounts?error=state_mismatch', request.url)
     );
@@ -36,7 +37,11 @@ export async function GET(request: NextRequest) {
     // 인증 코드로 access token 교환
     const tokenData = await exchangeCodeForToken(authCode);
 
-    const { access_token, advertiser_ids } = tokenData;
+    const { access_token, advertiser_ids, expires_in } = tokenData;
+
+    // 토큰 만료 시간 계산: API 응답값 > 기본 24시간
+    const expiresInMs = expires_in ? expires_in * 1000 : 24 * 60 * 60 * 1000;
+    const tokenExpiresAt = new Date(Date.now() + expiresInMs);
 
     if (!advertiser_ids || advertiser_ids.length === 0) {
       return NextResponse.redirect(
@@ -60,7 +65,7 @@ export async function GET(request: NextRequest) {
           data: {
             accessToken: access_token,
             refreshToken: access_token, // TikTok은 refresh token이 따로 없음
-            tokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24시간
+            tokenExpiresAt,
             status: 'ACTIVE',
           },
         });
@@ -90,7 +95,7 @@ export async function GET(request: NextRequest) {
           name: `TikTok Advertiser ${advertiserId.slice(-6)}`,
           accessToken: access_token,
           refreshToken: access_token,
-          tokenExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          tokenExpiresAt,
           status: 'ACTIVE',
         },
       });

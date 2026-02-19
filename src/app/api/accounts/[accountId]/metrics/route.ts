@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
 import { createTikTokClient } from '@/lib/tiktok/client';
+import { config } from '@/lib/config';
+import { parseLocalDate, formatLocalDate } from '@/lib/utils/date';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +21,12 @@ export async function GET(
 
     const account = await prisma.account.findUnique({
       where: { id: params.accountId },
+      select: {
+        id: true,
+        accessToken: true,
+        tiktokAdvId: true,
+        conversionValue: true,
+      },
     });
 
     if (!account) {
@@ -28,16 +36,17 @@ export async function GET(
       );
     }
 
-    // 날짜 범위 계산
-    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+    // 전환 가치: 계정 설정값 > config 기본값
+    const conversionValue = account.conversionValue ?? config.analytics.defaultConversionValue;
 
+    // 날짜 범위 계산 (로컬 시간대 기준)
     let startDate: Date;
     let endDate: Date;
 
     if (startDateParam && endDateParam) {
-      // 직접 날짜 지정
-      startDate = new Date(startDateParam);
-      endDate = new Date(endDateParam);
+      // 직접 날짜 지정 - 로컬 시간대 기준으로 파싱
+      startDate = parseLocalDate(startDateParam);
+      endDate = parseLocalDate(endDateParam);
     } else {
       // days 기반 계산
       endDate = new Date();
@@ -50,9 +59,10 @@ export async function GET(
 
     // 성과 데이터 조회 (레벨별)
     const metrics = await client.getPerformanceMetrics(
-      formatDate(startDate),
-      formatDate(endDate),
-      level
+      formatLocalDate(startDate),
+      formatLocalDate(endDate),
+      level,
+      { conversionValue }
     );
 
     // 집계 계산
@@ -69,7 +79,7 @@ export async function GET(
     const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
     const avgCpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
     const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-    const roas = totals.spend > 0 ? (totals.conversions * 50000) / totals.spend : 0; // 가정: 전환당 50,000원
+    const roas = totals.spend > 0 ? (totals.conversions * conversionValue) / totals.spend : 0;
 
     // Period comparison if requested
     const comparePeriod = searchParams.get('compare') === 'true';
@@ -87,9 +97,10 @@ export async function GET(
       const prevStartDate = new Date(prevEndDate.getTime() - periodDuration);
 
       const prevMetrics = await client.getPerformanceMetrics(
-        formatDate(prevStartDate),
-        formatDate(prevEndDate),
-        level
+        formatLocalDate(prevStartDate),
+        formatLocalDate(prevEndDate),
+        level,
+        { conversionValue }
       );
 
       const prevTotals = prevMetrics.reduce(
@@ -105,12 +116,12 @@ export async function GET(
       const prevCtr = prevTotals.impressions > 0 ? (prevTotals.clicks / prevTotals.impressions) * 100 : 0;
       const prevCpc = prevTotals.clicks > 0 ? prevTotals.spend / prevTotals.clicks : 0;
       const prevCpa = prevTotals.conversions > 0 ? prevTotals.spend / prevTotals.conversions : 0;
-      const prevRoas = prevTotals.spend > 0 ? (prevTotals.conversions * 50000) / prevTotals.spend : 0;
+      const prevRoas = prevTotals.spend > 0 ? (prevTotals.conversions * conversionValue) / prevTotals.spend : 0;
 
       comparison = {
         period: {
-          startDate: formatDate(prevStartDate),
-          endDate: formatDate(prevEndDate),
+          startDate: formatLocalDate(prevStartDate),
+          endDate: formatLocalDate(prevEndDate),
         },
         totals: prevTotals,
         averages: {
@@ -135,7 +146,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        period: { startDate: formatDate(startDate), endDate: formatDate(endDate), days },
+        period: { startDate: formatLocalDate(startDate), endDate: formatLocalDate(endDate), days },
         totals: {
           spend: totals.spend,
           impressions: totals.impressions,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import { config } from '@/lib/config';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,7 +32,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       include: {
         adGroup: {
           include: {
-            campaign: true,
+            campaign: {
+              include: {
+                account: {
+                  select: { conversionValue: true },
+                },
+              },
+            },
           },
         },
         creative: true,
@@ -44,6 +51,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
+
+    // 전환 가치: 계정 설정값 > config 기본값
+    const conversionValue = ad.adGroup.campaign.account.conversionValue ?? config.analytics.defaultConversionValue;
 
     // 날짜 범위 계산
     const endDate = new Date();
@@ -78,7 +88,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const cpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
     const cpm = totals.impressions > 0 ? (totals.spend / totals.impressions) * 1000 : 0;
     const cpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-    const roas = totals.spend > 0 ? (totals.conversions * 50000) / totals.spend : 0;
+    const roas = totals.spend > 0 ? (totals.conversions * conversionValue) / totals.spend : 0;
 
     // 일별 데이터 포맷
     const daily = dailyMetrics.map((m) => ({

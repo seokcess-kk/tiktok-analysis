@@ -1,5 +1,6 @@
 import prisma from '@/lib/db/prisma';
 import type { ReportType } from '@prisma/client';
+import { config } from '@/lib/config';
 
 export interface ReportData {
   accountId: string;
@@ -83,6 +84,9 @@ export async function generateReport(options: GenerateReportOptions): Promise<st
     { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
   );
 
+  // 전환 가치: 계정 설정값 > config 기본값
+  const conversionValue = account.conversionValue ?? config.analytics.defaultConversionValue;
+
   const ctr = aggregatedMetrics.impressions > 0
     ? (aggregatedMetrics.clicks / aggregatedMetrics.impressions) * 100
     : 0;
@@ -93,7 +97,7 @@ export async function generateReport(options: GenerateReportOptions): Promise<st
     ? aggregatedMetrics.spend / aggregatedMetrics.conversions
     : 0;
   const roas = aggregatedMetrics.spend > 0
-    ? (aggregatedMetrics.conversions * 50000) / aggregatedMetrics.spend
+    ? (aggregatedMetrics.conversions * conversionValue) / aggregatedMetrics.spend
     : 0;
 
   // Fetch insights

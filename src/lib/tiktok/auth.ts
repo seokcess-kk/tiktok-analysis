@@ -5,6 +5,7 @@ interface TikTokTokenResponse {
   advertiser_ids: string[];
   scope: number;
   token_type: string;
+  expires_in?: number; // 토큰 만료 시간 (초)
 }
 
 interface TikTokRefreshResponse {

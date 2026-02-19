@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Building2, Loader2, CheckCircle, AlertCircle, Megaphone } from 'lucide-react';
 import { FilterBar, SearchInput, FilterDropdown, industryOptions, statusOptions } from '@/components/filters';
 import { Badge } from '@/components/ui/badge';
+import { getStatusLabel, getStatusVariant } from '@/lib/utils/status';
 
 interface Account {
   id: string;
@@ -260,8 +261,8 @@ function AccountsContent() {
                           {account._count.insights} 인사이트
                         </Badge>
                       )}
-                      <Badge variant={account.status === 'ACTIVE' ? 'default' : 'outline'}>
-                        {account.status === 'ACTIVE' ? '활성' : '비활성'}
+                      <Badge variant={getStatusVariant(account.status)}>
+                        {getStatusLabel(account.status)}
                       </Badge>
                     </div>
                   </div>

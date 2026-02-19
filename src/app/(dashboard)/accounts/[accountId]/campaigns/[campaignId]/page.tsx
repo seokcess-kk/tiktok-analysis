@@ -27,6 +27,7 @@ import { DateRangePicker } from '@/components/filters';
 import { useDateRangeUrlState } from '@/hooks';
 import { Label } from '@/components/ui/label';
 import { formatCurrency } from '@/lib/utils';
+import { getStatusLabel, getStatusVariant } from '@/lib/utils/status';
 import type { DateRange } from 'react-day-picker';
 
 interface CampaignData {
@@ -447,8 +448,8 @@ export default function CampaignDashboardPage() {
                         </div>
                       </td>
                       <td className="py-3 px-2">
-                        <Badge variant={adGroup.status === 'ENABLE' ? 'default' : 'secondary'}>
-                          {adGroup.status === 'ENABLE' ? '운영중' : '일시정지'}
+                        <Badge variant={getStatusVariant(adGroup.status)}>
+                          {getStatusLabel(adGroup.status)}
                         </Badge>
                       </td>
                       <td className="py-3 px-2 text-right">{adGroup.adCount}개</td>

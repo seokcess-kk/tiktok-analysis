@@ -6,6 +6,8 @@ import type {
   TikTokCreative,
   TikTokMetrics,
 } from '@/types';
+import { config } from '@/lib/config';
+import { parseTikTokDate } from '@/lib/utils/date';
 
 const TIKTOK_API_BASE = 'https://business-api.tiktok.com/open_api/v1.3';
 
@@ -302,8 +304,11 @@ export class TikTokClient {
   async getPerformanceMetrics(
     startDate: string,
     endDate: string,
-    level: 'ADVERTISER' | 'CAMPAIGN' | 'ADGROUP' | 'AD' = 'CAMPAIGN'
+    level: 'ADVERTISER' | 'CAMPAIGN' | 'ADGROUP' | 'AD' = 'CAMPAIGN',
+    options: { conversionValue?: number } = {}
   ): Promise<TikTokMetrics[]> {
+    // 전환 가치: 계정 설정값 > 옵션값 > config 기본값
+    const conversionValue = options.conversionValue ?? config.analytics.defaultConversionValue;
     const dataLevelMap = {
       ADVERTISER: 'AUCTION_ADVERTISER',
       CAMPAIGN: 'AUCTION_CAMPAIGN',
@@ -348,9 +353,9 @@ export class TikTokClient {
       const clicks = Number(metrics.clicks) || 0;
       const conversions = Number(metrics.conversion) || 0;
 
-      // 날짜 형식 표준화: "2026-02-06 00:00:00" → "2026-02-06"
+      // 날짜 형식 표준화: TikTok API 응답을 로컬 시간대 기준으로 변환
       const rawDate = dimensions.stat_time_day || '';
-      const date = rawDate.split(' ')[0];
+      const date = parseTikTokDate(rawDate);
 
       return {
         date,
@@ -363,7 +368,7 @@ export class TikTokClient {
         cpm: impressions > 0 ? (spend / impressions) * 1000 : 0,
         cvr: clicks > 0 ? (conversions / clicks) * 100 : 0,
         cpa: conversions > 0 ? spend / conversions : 0,
-        roas: spend > 0 ? (conversions * 50000) / spend : 0, // 가정: 전환당 50,000원
+        roas: spend > 0 ? (conversions * conversionValue) / spend : 0,
         video_play_actions: Number(metrics.video_play_actions) || undefined,
         video_watched_2s: Number(metrics.video_watched_2s) || undefined,
         video_watched_6s: Number(metrics.video_watched_6s) || undefined,

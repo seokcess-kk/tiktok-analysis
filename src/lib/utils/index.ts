@@ -1,6 +1,36 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+// 날짜 유틸리티 re-export
+export {
+  parseLocalDate,
+  parseTikTokDate,
+  formatLocalDate,
+  formatISODate,
+  getDateRangeForQuery,
+  getPresetDateRange,
+  isSameLocalDate,
+  isDateInRange,
+  isValidDateString,
+  getTodayString,
+  getDaysAgoString,
+} from './date';
+
+// 상태 유틸리티 re-export
+export {
+  normalizeStatus,
+  getStatusLabel,
+  getStatusVariant,
+  getStatusInfo,
+  isActiveStatus,
+  isInactiveStatus,
+  toStorableStatus,
+  normalizeStatuses,
+  groupByStatus,
+  countByStatus,
+} from './status';
+export type { NormalizedStatus, StatusInfo } from './status';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }

@@ -10,6 +10,7 @@ import { Loader2, Megaphone, RefreshCw, Layers, Image } from 'lucide-react';
 import { PageHeader } from '@/components/dashboard/page-header';
 import type { DrilldownLevel } from '@/components/dashboard/drilldown-nav';
 import { formatCurrency } from '@/lib/utils';
+import { getStatusLabel, getStatusVariant } from '@/lib/utils/status';
 import { FilterBar, SearchInput, FilterDropdown } from '@/components/filters';
 
 interface Campaign {
@@ -48,11 +49,8 @@ const objectiveOptions = [
   { value: 'REACH', label: '도달' },
 ];
 
-const statusLabels: Record<string, string> = {
-  ENABLE: '운영중',
-  DISABLE: '일시정지',
-  DELETE: '삭제됨',
-};
+// 상태 레이블은 lib/utils/status.ts에서 관리
+// getStatusLabel, getStatusVariant 함수 사용
 
 const objectiveLabels: Record<string, string> = {
   TRAFFIC: '트래픽',
@@ -263,8 +261,8 @@ export default function CampaignListPage() {
                           {objectiveLabels[campaign.objective] || campaign.objective} · 예산 {formatCurrency(campaign.budget)}/{campaign.budgetMode === 'DAILY' ? '일' : '총'}
                         </CardDescription>
                       </div>
-                      <Badge variant={campaign.status === 'ENABLE' ? 'default' : 'secondary'}>
-                        {statusLabels[campaign.status] || campaign.status}
+                      <Badge variant={getStatusVariant(campaign.status)}>
+                        {getStatusLabel(campaign.status)}
                       </Badge>
                     </div>
                   </CardHeader>
