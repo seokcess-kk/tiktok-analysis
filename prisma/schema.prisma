@@ -79,10 +79,11 @@ model Account {
   reports       Report[]
   notifications Notification[]
 
-  lastSyncAt DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  deletedAt  DateTime? // 소프트 삭제용
+  lastSyncAt      DateTime?
+  conversionValue Float?    // 계정별 전환 가치 설정 (ROAS 계산용)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime? // 소프트 삭제용
 }
 
 enum AccountStatus {

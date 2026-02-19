@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import {
+  aggregateAndCompute,
+  computeChange,
+  metricsWithDefaults,
+  type RawMetrics,
+} from '@/lib/analytics/metrics-calculator';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,9 +25,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
 
-    // 캠페인 확인
+    // 캠페인 및 계정 확인
     const campaign = await prisma.campaign.findFirst({
       where: { id: campaignId, accountId },
+      include: {
+        account: {
+          select: { conversionValue: true },
+        },
+      },
     });
 
     if (!campaign) {
@@ -54,21 +65,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       orderBy: { date: 'asc' },
     });
 
-    // 집계 계산
-    const totals = dailyMetrics.reduce(
-      (acc, m) => ({
-        spend: acc.spend + m.spend,
-        impressions: acc.impressions + m.impressions,
-        clicks: acc.clicks + m.clicks,
-        conversions: acc.conversions + m.conversions,
-      }),
-      { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
-    );
-
-    const avgCtr = totals.impressions > 0 ? (totals.clicks / totals.impressions) * 100 : 0;
-    const avgCpc = totals.clicks > 0 ? totals.spend / totals.clicks : 0;
-    const avgCpa = totals.conversions > 0 ? totals.spend / totals.conversions : 0;
-    const roas = totals.spend > 0 ? (totals.conversions * 50000) / totals.spend : 0;
+    // 공통 모듈로 집계 계산 (계정별 conversionValue 적용)
+    const conversionValue = campaign.account.conversionValue ?? undefined;
+    const rawList: RawMetrics[] = dailyMetrics.map((m) => ({
+      spend: m.spend,
+      impressions: m.impressions,
+      clicks: m.clicks,
+      conversions: m.conversions,
+    }));
+    const aggregated = aggregateAndCompute(rawList, { conversionValue });
+    const totals = {
+      spend: aggregated.spend,
+      impressions: aggregated.impressions,
+      clicks: aggregated.clicks,
+      conversions: aggregated.conversions,
+    };
+    const avgMetrics = metricsWithDefaults(aggregated);
 
     // 이전 기간 비교
     const comparePeriod = searchParams.get('compare') === 'true';
@@ -92,42 +104,42 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         },
       });
 
-      const prevTotals = prevMetrics.reduce(
-        (acc, m) => ({
-          spend: acc.spend + m.spend,
-          impressions: acc.impressions + m.impressions,
-          clicks: acc.clicks + m.clicks,
-          conversions: acc.conversions + m.conversions,
-        }),
-        { spend: 0, impressions: 0, clicks: 0, conversions: 0 }
-      );
-
-      const prevCtr = prevTotals.impressions > 0 ? (prevTotals.clicks / prevTotals.impressions) * 100 : 0;
-      const prevCpc = prevTotals.clicks > 0 ? prevTotals.spend / prevTotals.clicks : 0;
-      const prevCpa = prevTotals.conversions > 0 ? prevTotals.spend / prevTotals.conversions : 0;
-      const prevRoas = prevTotals.spend > 0 ? (prevTotals.conversions * 50000) / prevTotals.spend : 0;
+      // 공통 모듈로 이전 기간 집계
+      const prevRawList: RawMetrics[] = prevMetrics.map((m) => ({
+        spend: m.spend,
+        impressions: m.impressions,
+        clicks: m.clicks,
+        conversions: m.conversions,
+      }));
+      const prevAggregated = aggregateAndCompute(prevRawList, { conversionValue });
+      const prevAvgMetrics = metricsWithDefaults(prevAggregated);
 
       comparison = {
         period: {
           startDate: prevStartDate.toISOString().split('T')[0],
           endDate: prevEndDate.toISOString().split('T')[0],
         },
-        totals: prevTotals,
+        totals: {
+          spend: prevAggregated.spend,
+          impressions: prevAggregated.impressions,
+          clicks: prevAggregated.clicks,
+          conversions: prevAggregated.conversions,
+        },
         averages: {
-          ctr: prevCtr,
-          cpc: prevCpc,
-          cpa: prevCpa,
-          roas: prevRoas,
+          ctr: prevAvgMetrics.ctr,
+          cpc: prevAvgMetrics.cpc,
+          cpa: prevAvgMetrics.cpa,
+          roas: prevAvgMetrics.roas,
         },
         changes: {
-          spend: prevTotals.spend > 0 ? ((totals.spend - prevTotals.spend) / prevTotals.spend) * 100 : 0,
-          impressions: prevTotals.impressions > 0 ? ((totals.impressions - prevTotals.impressions) / prevTotals.impressions) * 100 : 0,
-          clicks: prevTotals.clicks > 0 ? ((totals.clicks - prevTotals.clicks) / prevTotals.clicks) * 100 : 0,
-          conversions: prevTotals.conversions > 0 ? ((totals.conversions - prevTotals.conversions) / prevTotals.conversions) * 100 : 0,
-          ctr: prevCtr > 0 ? ((avgCtr - prevCtr) / prevCtr) * 100 : 0,
-          cpc: prevCpc > 0 ? ((avgCpc - prevCpc) / prevCpc) * 100 : 0,
-          cpa: prevCpa > 0 ? ((avgCpa - prevCpa) / prevCpa) * 100 : 0,
-          roas: prevRoas > 0 ? ((roas - prevRoas) / prevRoas) * 100 : 0,
+          spend: computeChange(totals.spend, prevAggregated.spend) ?? 0,
+          impressions: computeChange(totals.impressions, prevAggregated.impressions) ?? 0,
+          clicks: computeChange(totals.clicks, prevAggregated.clicks) ?? 0,
+          conversions: computeChange(totals.conversions, prevAggregated.conversions) ?? 0,
+          ctr: computeChange(avgMetrics.ctr, prevAvgMetrics.ctr) ?? 0,
+          cpc: computeChange(avgMetrics.cpc, prevAvgMetrics.cpc) ?? 0,
+          cpa: computeChange(avgMetrics.cpa, prevAvgMetrics.cpa) ?? 0,
+          roas: computeChange(avgMetrics.roas, prevAvgMetrics.roas) ?? 0,
         },
       };
     }
@@ -151,10 +163,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           conversions: totals.conversions,
         },
         averages: {
-          ctr: avgCtr,
-          cpc: avgCpc,
-          cpa: avgCpa,
-          roas: roas,
+          ctr: avgMetrics.ctr,
+          cpc: avgMetrics.cpc,
+          cpa: avgMetrics.cpa,
+          roas: avgMetrics.roas,
+          valueSource: aggregated.valueSource,
         },
         daily: dailyMetrics.map((m) => ({
           date: m.date.toISOString().split('T')[0],

@@ -75,6 +75,23 @@ export const config = {
       /** 평균 영상 재생 시간 (초) */
       avgVideoPlayTime: getEnvInt('BENCHMARK_VIDEO_PLAY_TIME', 8),
     },
+    /** 광고 세그먼트 임계값 */
+    segment: {
+      /** 최소 노출수 */
+      minImpressions: getEnvInt('SEGMENT_MIN_IMPRESSIONS', 1000),
+      /** 최소 클릭수 */
+      minClicks: getEnvInt('SEGMENT_MIN_CLICKS', 50),
+      /** Scale 기준 ROAS */
+      scaleRoasThreshold: getEnvFloat('SEGMENT_SCALE_ROAS', 2.0),
+      /** Scale 기준 CPA 배수 (벤치마크 대비) */
+      scaleCpaThreshold: getEnvFloat('SEGMENT_SCALE_CPA', 0.8),
+      /** Kill 기준 ROAS */
+      killRoasThreshold: getEnvFloat('SEGMENT_KILL_ROAS', 0.5),
+      /** Kill 기준 CPA 배수 */
+      killCpaMultiplier: getEnvFloat('SEGMENT_KILL_CPA', 2.0),
+      /** 추세 기울기 임계값 */
+      trendSlopeThreshold: getEnvFloat('SEGMENT_TREND_SLOPE', -0.1),
+    },
   },
 
   /**

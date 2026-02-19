@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import { compareMetrics, metricsWithDefaults } from '@/lib/analytics/metrics-calculator';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           select: {
             id: true,
             name: true,
+            conversionValue: true,
             client: {
               select: {
                 id: true,
@@ -90,35 +92,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    // 메트릭 계산
-    const spend = metrics._sum.spend || 0;
-    const impressions = metrics._sum.impressions || 0;
-    const clicks = metrics._sum.clicks || 0;
-    const conversions = metrics._sum.conversions || 0;
-
-    const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-    const cvr = clicks > 0 ? (conversions / clicks) * 100 : 0;
-    const cpa = conversions > 0 ? spend / conversions : 0;
-    const roas = spend > 0 ? (conversions * 50000) / spend : 0;
-
-    // 변화율 계산
-    const prevSpend = prevMetrics._sum.spend || 0;
-    const prevImpressions = prevMetrics._sum.impressions || 0;
-    const prevClicks = prevMetrics._sum.clicks || 0;
-    const prevConversions = prevMetrics._sum.conversions || 0;
-    const prevCtr = prevImpressions > 0 ? (prevClicks / prevImpressions) * 100 : 0;
-    const prevCpa = prevConversions > 0 ? prevSpend / prevConversions : 0;
-    const prevRoas = prevSpend > 0 ? (prevConversions * 50000) / prevSpend : 0;
-
-    const changes = {
-      spend: prevSpend > 0 ? ((spend - prevSpend) / prevSpend) * 100 : 0,
-      impressions: prevImpressions > 0 ? ((impressions - prevImpressions) / prevImpressions) * 100 : 0,
-      clicks: prevClicks > 0 ? ((clicks - prevClicks) / prevClicks) * 100 : 0,
-      conversions: prevConversions > 0 ? ((conversions - prevConversions) / prevConversions) * 100 : 0,
-      ctr: prevCtr > 0 ? ((ctr - prevCtr) / prevCtr) * 100 : 0,
-      cpa: prevCpa > 0 ? ((cpa - prevCpa) / prevCpa) * 100 : 0,
-      roas: prevRoas > 0 ? ((roas - prevRoas) / prevRoas) * 100 : 0,
-    };
+    // 공통 모듈로 지표 계산 및 비교 (계정별 conversionValue 적용)
+    const conversionValue = campaign.account.conversionValue ?? undefined;
+    const comparison = compareMetrics(
+      {
+        spend: metrics._sum.spend || 0,
+        impressions: metrics._sum.impressions || 0,
+        clicks: metrics._sum.clicks || 0,
+        conversions: metrics._sum.conversions || 0,
+      },
+      {
+        spend: prevMetrics._sum.spend || 0,
+        impressions: prevMetrics._sum.impressions || 0,
+        clicks: prevMetrics._sum.clicks || 0,
+        conversions: prevMetrics._sum.conversions || 0,
+      },
+      { conversionValue }
+    );
+    const currentMetrics = metricsWithDefaults(comparison.current);
 
     // 최근 인사이트/전략 카운트
     const [insightCount, strategyCount] = await Promise.all([
@@ -147,23 +138,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         },
         account: campaign.account,
         metrics: {
-          spend,
-          impressions,
-          clicks,
-          conversions,
-          ctr: Number(ctr.toFixed(2)),
-          cvr: Number(cvr.toFixed(2)),
-          cpa: Math.round(cpa),
-          roas: Number(roas.toFixed(2)),
+          spend: currentMetrics.spend,
+          impressions: currentMetrics.impressions,
+          clicks: currentMetrics.clicks,
+          conversions: currentMetrics.conversions,
+          ctr: Number(currentMetrics.ctr.toFixed(2)),
+          cvr: Number(currentMetrics.cvr.toFixed(2)),
+          cpa: Math.round(currentMetrics.cpa),
+          roas: Number(currentMetrics.roas.toFixed(2)),
+          valueSource: comparison.current.valueSource,
         },
         changes: {
-          spend: Number(changes.spend.toFixed(1)),
-          impressions: Number(changes.impressions.toFixed(1)),
-          clicks: Number(changes.clicks.toFixed(1)),
-          conversions: Number(changes.conversions.toFixed(1)),
-          ctr: Number(changes.ctr.toFixed(1)),
-          cpa: Number(changes.cpa.toFixed(1)),
-          roas: Number(changes.roas.toFixed(1)),
+          spend: comparison.changes.spend !== null ? Number(comparison.changes.spend.toFixed(1)) : 0,
+          impressions: comparison.changes.impressions !== null ? Number(comparison.changes.impressions.toFixed(1)) : 0,
+          clicks: comparison.changes.clicks !== null ? Number(comparison.changes.clicks.toFixed(1)) : 0,
+          conversions: comparison.changes.conversions !== null ? Number(comparison.changes.conversions.toFixed(1)) : 0,
+          ctr: comparison.changes.ctr !== null ? Number(comparison.changes.ctr.toFixed(1)) : 0,
+          cpa: comparison.changes.cpa !== null ? Number(comparison.changes.cpa.toFixed(1)) : 0,
+          roas: comparison.changes.roas !== null ? Number(comparison.changes.roas.toFixed(1)) : 0,
         },
         period: {
           startDate: startDate.toISOString().split('T')[0],

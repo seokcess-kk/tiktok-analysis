@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/db/prisma';
+import { computeAllMetrics, metricsWithDefaults } from '@/lib/analytics/metrics-calculator';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,16 +108,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // 캠페인 데이터 가공
     const campaignsWithMetrics = campaigns.map((campaign) => {
-      const metrics = metricsMap.get(campaign.id);
-      const spend = metrics?._sum.spend || 0;
-      const impressions = metrics?._sum.impressions || 0;
-      const clicks = metrics?._sum.clicks || 0;
-      const conversions = metrics?._sum.conversions || 0;
+      const rawMetrics = metricsMap.get(campaign.id);
+      const spend = rawMetrics?._sum.spend || 0;
+      const impressions = rawMetrics?._sum.impressions || 0;
+      const clicks = rawMetrics?._sum.clicks || 0;
+      const conversions = rawMetrics?._sum.conversions || 0;
 
-      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-      const cvr = clicks > 0 ? (conversions / clicks) * 100 : 0;
-      const cpa = conversions > 0 ? spend / conversions : 0;
-      const roas = spend > 0 ? (conversions * 50000) / spend : 0;
+      // 공통 모듈로 지표 계산 (계정별 conversionValue 적용)
+      const calculated = computeAllMetrics(
+        { spend, impressions, clicks, conversions },
+        { conversionValue: account.conversionValue ?? undefined }
+      );
+      const metrics = metricsWithDefaults(calculated);
 
       return {
         id: campaign.id,
@@ -129,14 +132,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         adGroupCount: campaign._count.adGroups,
         creativeCount: creativeCountMap.get(campaign.id) || 0,
         metrics: {
-          spend,
-          impressions,
-          clicks,
-          conversions,
-          ctr: Number(ctr.toFixed(2)),
-          cvr: Number(cvr.toFixed(2)),
-          cpa: Math.round(cpa),
-          roas: Number(roas.toFixed(2)),
+          spend: metrics.spend,
+          impressions: metrics.impressions,
+          clicks: metrics.clicks,
+          conversions: metrics.conversions,
+          ctr: Number(metrics.ctr.toFixed(2)),
+          cvr: Number(metrics.cvr.toFixed(2)),
+          cpa: Math.round(metrics.cpa),
+          roas: Number(metrics.roas.toFixed(2)),
+          valueSource: calculated.valueSource,
         },
         createdAt: campaign.createdAt,
         updatedAt: campaign.updatedAt,

@@ -9,6 +9,10 @@ import {
   isOpenAIAvailable,
   type MetricData,
 } from '@/lib/ai/fallback';
+import {
+  generateWarnings,
+  type DailyMetricPoint,
+} from '@/lib/analytics/early-warning';
 
 /**
  * POST /api/jobs/daily-insights
@@ -53,6 +57,7 @@ export async function POST(request: NextRequest) {
       accountName: string;
       insightsCreated: number;
       strategiesCreated: number;
+      warningsCreated?: number;
       error?: string;
     }> = [];
 
@@ -321,11 +326,101 @@ export async function POST(request: NextRequest) {
           console.log(`[Daily Insights] ${criticalInsights.length} critical insights detected for account ${account.id}`);
         }
 
+        // ============================================================
+        // 조기경보 시스템 (Early Warning)
+        // ============================================================
+        let warningsCreated = 0;
+        try {
+          // 캠페인별 일별 메트릭 준비
+          const campaignDailyMetrics = await prisma.performanceMetric.findMany({
+            where: {
+              accountId: account.id,
+              level: 'CAMPAIGN',
+              date: { gte: weekAgo, lte: today },
+              campaignId: { not: null },
+            },
+            orderBy: { date: 'asc' },
+          });
+
+          // 캠페인별로 그룹화
+          const campaignMetricsMap = new Map<string, DailyMetricPoint[]>();
+          for (const metric of campaignDailyMetrics) {
+            if (!metric.campaignId) continue;
+            if (!campaignMetricsMap.has(metric.campaignId)) {
+              campaignMetricsMap.set(metric.campaignId, []);
+            }
+            campaignMetricsMap.get(metric.campaignId)!.push({
+              date: metric.date,
+              spend: metric.spend,
+              impressions: metric.impressions,
+              clicks: metric.clicks,
+              conversions: metric.conversions,
+              ctr: metric.ctr ?? undefined,
+              cpa: metric.cpa ?? undefined,
+              roas: metric.roas ?? undefined,
+            });
+          }
+
+          // 캠페인 이름 매핑
+          const campaignNameMap = new Map<string, string>();
+          for (const campaign of campaigns) {
+            campaignNameMap.set(campaign.id, campaign.name);
+          }
+
+          // 조기경보 생성
+          const warningEntities = Array.from(campaignMetricsMap.entries())
+            .filter(([, metrics]) => metrics.length >= 3) // 최소 3일 데이터 필요
+            .map(([campaignId, dailyMetrics]) => ({
+              id: campaignId,
+              type: 'CAMPAIGN' as const,
+              name: campaignNameMap.get(campaignId) || campaignId,
+              dailyMetrics,
+            }));
+
+          const warnings = generateWarnings(warningEntities, {
+            conversionValue: account.conversionValue ?? undefined,
+          });
+
+          // HIGH/CRITICAL 경고를 AIInsight로 저장
+          const highRiskWarnings = warnings.filter(
+            (w) => w.severity === 'CRITICAL' || w.riskAssessment.riskLevel === 'HIGH'
+          );
+
+          for (const warning of highRiskWarnings) {
+            await prisma.aIInsight.create({
+              data: {
+                accountId: account.id,
+                campaignId: warning.entityType === 'CAMPAIGN' ? warning.entityId : null,
+                type: 'ANOMALY',
+                severity: warning.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING',
+                title: warning.title,
+                summary: warning.message,
+                details: JSON.parse(JSON.stringify({
+                  warningType: warning.type,
+                  riskScore: warning.riskAssessment.riskScore,
+                  riskLevel: warning.riskAssessment.riskLevel,
+                  factors: warning.riskAssessment.factors,
+                  prediction: warning.riskAssessment.prediction,
+                  recommendedAction: warning.recommendedAction,
+                })),
+              },
+            });
+            warningsCreated++;
+          }
+
+          if (highRiskWarnings.length > 0) {
+            console.log(`[Early Warning] ${highRiskWarnings.length} high-risk warnings detected for account ${account.id}`);
+          }
+        } catch (warningError) {
+          console.error(`Early warning analysis failed for ${account.name}:`, warningError);
+        }
+
         results.push({
           accountId: account.id,
           accountName: account.name,
           insightsCreated: savedInsights.length,
           strategiesCreated: savedStrategies.length,
+          warningsCreated,
         });
       } catch (accountError) {
         console.error(`Error processing account ${account.name}:`, accountError);
@@ -341,6 +436,7 @@ export async function POST(request: NextRequest) {
 
     const totalInsights = results.reduce((sum, r) => sum + r.insightsCreated, 0);
     const totalStrategies = results.reduce((sum, r) => sum + r.strategiesCreated, 0);
+    const totalWarnings = results.reduce((sum, r) => sum + (r.warningsCreated || 0), 0);
     const failedAccounts = results.filter((r) => r.error).length;
 
     return NextResponse.json({
@@ -350,6 +446,7 @@ export async function POST(request: NextRequest) {
         processed: accounts.length,
         totalInsights,
         totalStrategies,
+        totalWarnings,
         failedAccounts,
         results,
         usedAI: isOpenAIAvailable(),

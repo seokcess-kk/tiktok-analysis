@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/db/prisma';
+import { computeAllMetrics, metricsWithDefaults } from '@/lib/analytics/metrics-calculator';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,9 +20,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const status = searchParams.get('status');
     const days = parseInt(searchParams.get('days') || '7', 10);
 
-    // 캠페인 확인
+    // 캠페인 및 계정 확인
     const campaign = await prisma.campaign.findFirst({
       where: { id: campaignId, accountId },
+      include: {
+        account: {
+          select: { conversionValue: true },
+        },
+      },
     });
 
     if (!campaign) {
@@ -78,18 +84,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     });
 
-    // 광고그룹 데이터 가공
+    // 광고그룹 데이터 가공 (공통 모듈 사용)
+    const conversionValue = campaign.account.conversionValue ?? undefined;
     const adGroupsWithMetrics = adGroups.map((adGroup) => {
-      const metrics = metricsMap.get(adGroup.id);
-      const spend = metrics?._sum.spend || 0;
-      const impressions = metrics?._sum.impressions || 0;
-      const clicks = metrics?._sum.clicks || 0;
-      const conversions = metrics?._sum.conversions || 0;
+      const rawMetrics = metricsMap.get(adGroup.id);
+      const spend = rawMetrics?._sum.spend || 0;
+      const impressions = rawMetrics?._sum.impressions || 0;
+      const clicks = rawMetrics?._sum.clicks || 0;
+      const conversions = rawMetrics?._sum.conversions || 0;
 
-      const ctr = impressions > 0 ? (clicks / impressions) * 100 : 0;
-      const cvr = clicks > 0 ? (conversions / clicks) * 100 : 0;
-      const cpa = conversions > 0 ? spend / conversions : 0;
-      const roas = spend > 0 ? (conversions * 50000) / spend : 0;
+      const calculated = computeAllMetrics(
+        { spend, impressions, clicks, conversions },
+        { conversionValue }
+      );
+      const metrics = metricsWithDefaults(calculated);
 
       return {
         id: adGroup.id,
@@ -100,14 +108,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         bidAmount: adGroup.bidAmount,
         adCount: adGroup._count.ads,
         metrics: {
-          spend,
-          impressions,
-          clicks,
-          conversions,
-          ctr: Number(ctr.toFixed(2)),
-          cvr: Number(cvr.toFixed(2)),
-          cpa: Math.round(cpa),
-          roas: Number(roas.toFixed(2)),
+          spend: metrics.spend,
+          impressions: metrics.impressions,
+          clicks: metrics.clicks,
+          conversions: metrics.conversions,
+          ctr: Number(metrics.ctr.toFixed(2)),
+          cvr: Number(metrics.cvr.toFixed(2)),
+          cpa: Math.round(metrics.cpa),
+          roas: Number(metrics.roas.toFixed(2)),
+          valueSource: calculated.valueSource,
         },
         createdAt: adGroup.createdAt,
         updatedAt: adGroup.updatedAt,
