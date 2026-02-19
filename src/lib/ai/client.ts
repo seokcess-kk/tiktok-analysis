@@ -8,6 +8,49 @@ let openaiInstance: OpenAI | null = null;
 const MAX_RETRIES = 3;
 const INITIAL_DELAY = 1000; // 1초
 
+// 모델 타입 정의
+export type AIModelType = 'gpt-4o' | 'gpt-4o-mini';
+export type TaskComplexity = 'low' | 'medium' | 'high';
+
+// 작업 복잡도별 모델 매핑
+const MODEL_BY_COMPLEXITY: Record<TaskComplexity, AIModelType> = {
+  low: 'gpt-4o-mini',    // 간단한 분류, 요약
+  medium: 'gpt-4o-mini', // 일반 분석
+  high: 'gpt-4o',        // 복잡한 전략, 예측
+};
+
+// 작업 유형별 기본 복잡도 매핑
+export const TASK_COMPLEXITY: Record<string, TaskComplexity> = {
+  'daily-summary': 'medium',
+  'anomaly-detection': 'low',
+  'trend-analysis': 'medium',
+  'creative-analysis': 'medium',
+  'prediction': 'high',
+  'budget-strategy': 'high',
+  'targeting-strategy': 'high',
+  'creative-strategy': 'medium',
+  'bidding-strategy': 'medium',
+  'comprehensive-strategy': 'high',
+};
+
+/**
+ * 복잡도에 따른 모델 선택
+ */
+export function selectModel(complexity?: TaskComplexity, taskType?: string): AIModelType {
+  // 명시적 복잡도가 주어진 경우
+  if (complexity) {
+    return MODEL_BY_COMPLEXITY[complexity];
+  }
+
+  // 작업 유형으로 복잡도 추론
+  if (taskType && taskType in TASK_COMPLEXITY) {
+    return MODEL_BY_COMPLEXITY[TASK_COMPLEXITY[taskType]];
+  }
+
+  // 기본값: gpt-4o-mini (비용 절감)
+  return 'gpt-4o-mini';
+}
+
 function getOpenAI(): OpenAI {
   if (!openaiInstance) {
     const apiKey = process.env.OPENAI_API_KEY;
@@ -24,6 +67,9 @@ function getOpenAI(): OpenAI {
 }
 
 export interface AIRequestOptions {
+  model?: AIModelType;
+  complexity?: TaskComplexity;
+  taskType?: string;
   temperature?: number;
   maxTokens?: number;
   retries?: number;
@@ -70,15 +116,25 @@ export async function generateCompletion<T>(
   schema: z.ZodType<T>,
   options: AIRequestOptions = {}
 ): Promise<T> {
-  const { temperature = 0.3, maxTokens = 4096, retries = MAX_RETRIES } = options;
+  const {
+    model,
+    complexity,
+    taskType,
+    temperature = 0.3,
+    maxTokens = 4096,
+    retries = MAX_RETRIES,
+  } = options;
+
+  // 모델 선택: 명시적 model > 복잡도 > 작업 유형 > 기본값
+  const selectedModel = model || selectModel(complexity, taskType);
 
   const openai = getOpenAI();
 
   return withRetry(async () => {
-    console.log('[AI Client] Sending request to OpenAI...');
+    console.log(`[AI Client] Sending request to ${selectedModel}...`);
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o',
+      model: selectedModel,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
@@ -114,12 +170,13 @@ export async function generateStreamingCompletion(
   userPrompt: string,
   options: AIRequestOptions = {}
 ): Promise<AsyncIterable<string>> {
-  const { temperature = 0.3, maxTokens = 4096 } = options;
+  const { model, complexity, taskType, temperature = 0.3, maxTokens = 4096 } = options;
 
+  const selectedModel = model || selectModel(complexity, taskType);
   const openai = getOpenAI();
 
   const stream = await openai.chat.completions.create({
-    model: 'gpt-4o',
+    model: selectedModel,
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },

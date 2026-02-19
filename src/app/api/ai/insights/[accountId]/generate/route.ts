@@ -3,19 +3,33 @@ import prisma from '@/lib/db/prisma';
 import { generateCompletion } from '@/lib/ai/client';
 import { insightPrompts } from '@/lib/ai/prompts/insight';
 import { InsightsResponseSchema } from '@/lib/ai/schemas/insight.schema';
+import {
+  validateRequest,
+  validationErrorResponse,
+  GenerateInsightSchema,
+  aiRateLimiter,
+  rateLimitExceededResponse,
+  getClientIdentifier,
+} from '@/lib/api';
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { accountId: string } }
 ) {
   try {
-    let type = 'DAILY_SUMMARY';
-    try {
-      const body = await request.json();
-      type = body.type || 'DAILY_SUMMARY';
-    } catch {
-      // Body is empty or invalid, use default
+    // 1. Rate Limiting 체크
+    const identifier = `ai-insight:${params.accountId}`;
+    const rateLimitResult = await aiRateLimiter(request, identifier);
+    if (!rateLimitResult.success) {
+      return rateLimitExceededResponse(rateLimitResult);
     }
+
+    // 2. 입력 검증
+    const validation = await validateRequest(request, GenerateInsightSchema);
+    if (!validation.success) {
+      return validationErrorResponse(validation.error);
+    }
+    const { type } = validation.data!;
 
     // Get account with client info
     const account = await prisma.account.findUnique({

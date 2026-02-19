@@ -82,6 +82,7 @@ model Account {
   lastSyncAt DateTime?
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime? // 소프트 삭제용
 }
 
 enum AccountStatus {
@@ -110,6 +111,7 @@ model Campaign {
   strategies       AIStrategy[]
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
+  deletedAt        DateTime? // 소프트 삭제용
 
   @@unique([accountId, tiktokCampaignId])
   @@index([accountId])
@@ -129,6 +131,7 @@ model AdGroup {
   metrics         PerformanceMetric[]
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime? // 소프트 삭제용
 
   @@unique([campaignId, tiktokAdGroupId])
   @@index([campaignId])
@@ -146,6 +149,7 @@ model Ad {
   metrics    PerformanceMetric[]
   createdAt  DateTime            @default(now())
   updatedAt  DateTime            @updatedAt
+  deletedAt  DateTime? // 소프트 삭제용
 
   @@unique([adGroupId, tiktokAdId])
   @@index([adGroupId])
@@ -177,6 +181,7 @@ model Creative {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // 소프트 삭제용
 }
 
 enum CreativeType {
@@ -254,6 +259,9 @@ model PerformanceMetric {
   @@index([accountId, date])
   @@index([creativeId, date])
   @@index([campaignId, date])
+  // 복합 인덱스 추가 (Phase 3 최적화)
+  @@index([accountId, level, date])  // 레벨별 조회 최적화
+  @@index([campaignId, level, date]) // 캠페인별 레벨 조회
 }
 
 enum MetricLevel {
@@ -294,6 +302,9 @@ model AIInsight {
   @@index([accountId, type])
   @@index([campaignId])
   @@index([creativeId])
+  // 복합 인덱스 추가 (Phase 3 최적화)
+  @@index([accountId, type, generatedAt])   // 타입별 최신 조회
+  @@index([campaignId, type, generatedAt])  // 캠페인별 타입 조회
 }
 
 enum InsightType {
@@ -345,6 +356,9 @@ model AIStrategy {
   @@index([accountId, createdAt])
   @@index([campaignId])
   @@index([creativeId])
+  // 복합 인덱스 추가 (Phase 3 최적화)
+  @@index([accountId, status, createdAt])   // 상태별 최신 조회
+  @@index([campaignId, status, createdAt])  // 캠페인별 상태 조회
 }
 
 enum StrategyType {

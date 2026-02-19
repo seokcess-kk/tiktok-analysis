@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import prisma from '@/lib/db/prisma';
 import {
   generateBudgetStrategy,
@@ -6,6 +7,19 @@ import {
   generateComprehensiveStrategies,
   type StrategyContext,
 } from '@/lib/ai/modules/strategy-advisor';
+import {
+  validateRequest,
+  validationErrorResponse,
+  aiRateLimiter,
+  rateLimitExceededResponse,
+} from '@/lib/api';
+
+// 전략 생성 요청 스키마
+const GenerateStrategyRequestSchema = z.object({
+  type: z.enum(['BUDGET', 'CAMPAIGN', 'TARGETING', 'CREATIVE', 'BIDDING']).optional(),
+  insightId: z.string().optional(),
+  constraints: z.record(z.unknown()).optional(),
+});
 
 interface RouteParams {
   params: { accountId: string };
@@ -18,17 +32,20 @@ interface RouteParams {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const { accountId } = params;
-    let type: string | undefined;
-    let insightId: string | undefined;
-    let constraints: Record<string, unknown> | undefined;
-    try {
-      const body = await request.json();
-      type = body.type;
-      insightId = body.insightId;
-      constraints = body.constraints;
-    } catch {
-      // Body is empty or invalid, use defaults
+
+    // 1. Rate Limiting 체크
+    const identifier = `ai-strategy:${accountId}`;
+    const rateLimitResult = await aiRateLimiter(request, identifier);
+    if (!rateLimitResult.success) {
+      return rateLimitExceededResponse(rateLimitResult);
     }
+
+    // 2. 입력 검증
+    const validation = await validateRequest(request, GenerateStrategyRequestSchema);
+    if (!validation.success) {
+      return validationErrorResponse(validation.error);
+    }
+    const { type, insightId, constraints } = validation.data!;
 
     // 계정 조회
     const account = await prisma.account.findUnique({

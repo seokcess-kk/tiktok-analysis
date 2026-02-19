@@ -4,6 +4,36 @@
  * OpenAI API 키가 없거나 API 호출 실패 시 규칙 기반으로 인사이트/전략 생성
  */
 
+// ============================================================
+// OpenAI 가용성 확인
+// ============================================================
+
+/**
+ * OpenAI API 사용 가능 여부 확인
+ * API 키가 설정되어 있으면 true
+ */
+export function isOpenAIAvailable(): boolean {
+  const apiKey = process.env.OPENAI_API_KEY;
+  return !!apiKey && apiKey.length > 0 && apiKey !== 'sk-your-api-key';
+}
+
+/**
+ * Fallback 사용 이유 반환
+ */
+export function getFallbackReason(): string | null {
+  if (!process.env.OPENAI_API_KEY) {
+    return 'OPENAI_API_KEY not configured';
+  }
+  if (process.env.OPENAI_API_KEY === 'sk-your-api-key') {
+    return 'OPENAI_API_KEY is placeholder';
+  }
+  return null;
+}
+
+// ============================================================
+// 타입 정의
+// ============================================================
+
 export interface MetricData {
   date: string;
   spend: number;
@@ -272,11 +302,4 @@ export function generateFallbackStrategies(
   }
 
   return strategies;
-}
-
-/**
- * OpenAI API 사용 가능 여부 확인
- */
-export function isOpenAIAvailable(): boolean {
-  return !!process.env.OPENAI_API_KEY;
 }
